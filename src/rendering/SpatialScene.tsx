@@ -5,11 +5,14 @@ import { Html, RoundedBox } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { Atmosphere } from './Atmosphere';
+import { WorldGrade } from './WorldGrade';
+import { presentation, presentationEnvelopes } from '@/animations/presentation';
 import { ModuleCard } from '@/components/ModuleCard';
 import { modules, wrapIndex, type NexusModule } from '@/lib/modules';
 import { handSignal, useNexus } from '@/stores/nexus';
 import { stepSpring } from '@/animations/spring';
 import { HumanForm } from '@/embodiment/HumanForm';
+import { PresentingHand } from '@/embodiment/PresentingHand';
 import { cardMatrices, formSignal, useForm } from '@/stores/form';
 
 function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: number; angle: React.RefObject<number>; time: React.RefObject<number> }) {
@@ -66,19 +69,19 @@ function World() {
     // With LOCKED at boot, time is exactly 0 and camera is exactly stationary.
     camera.position.x = Math.sin(time.current * .12) * .06;
     camera.position.y = .65 + Math.sin(time.current * .15) * .035;
+    camera.position.z = 10 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
     camera.lookAt(0, .2, -2);
-    if (useForm.getState().phase !== 'NORMAL') { frameCount.current = 0; sampleTime.current = 0; return; }
     frameCount.current++; sampleTime.current += dt;
     if (sampleTime.current >= 1.5) {
       const fps = Math.round(frameCount.current / sampleTime.current);
       useNexus.setState({ fps });
-      if (fps < 38) lowSamples.current++; else lowSamples.current = 0;
+      if (fps < 38 && useForm.getState().phase === 'NORMAL') lowSamples.current++; else lowSamples.current = 0;
       if (lowSamples.current >= 3 && state.quality === 'high') { useNexus.setState({ quality: 'low' }); setDpr(1); state.log('Adaptive render · reduced effects'); }
       frameCount.current = 0; sampleTime.current = 0;
     }
   });
-  return <><HumanForm /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
-    {quality === 'high' && <EffectComposer multisampling={0}><Bloom intensity={.35} luminanceThreshold={.85} mipmapBlur /></EffectComposer>}
+  return <><HumanForm /><PresentingHand /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
+    <EffectComposer multisampling={0}><Bloom intensity={quality === 'high' ? .35 : 0} luminanceThreshold={.85} mipmapBlur /><WorldGrade /></EffectComposer>
   </>;
 }
 export default function SpatialScene() {

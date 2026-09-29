@@ -10,6 +10,7 @@ float field(vec3 p){
  float head=ell(p-vec3(0.,.72,0.),vec3(.345,.465,.30));
  float face=ell(p-vec3(0.,.60,.075),vec3(.29,.31,.265));
  head=sm(head,face,.12);
+ head=sm(head,ell(p-vec3(0.,.66,.285),vec3(.075,.135,.09)),.10);
  float neck=ell(p-vec3(0.,.07,.035),vec3(.16,.37,.175));
  float shoulders=ell(p-vec3(0.,-.35,.055),vec3(.69,.235,.28));
  float chest=ell(p-vec3(0.,-.73,.07),vec3(.535,.46,.285));
@@ -26,11 +27,11 @@ void main(){
  else gl_FragColor=vec4(normalAt(p)*.5+.5,1.);
 }`;
 export type BakedSurface = { positions: Float32Array; normals: Float32Array; count: number };
-export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (message: string) => void): Promise<BakedSurface> {
+export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (message: string) => void, field?: string): Promise<BakedSurface> {
   report('Baking the human surface');
   const target = new THREE.WebGLRenderTarget(256, 256, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
   const scene = new THREE.Scene(), camera = new THREE.Camera();
-  const material = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment, uniforms: { uMode: { value: 0 } }, depthTest: false, depthWrite: false });
+  const material = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: field ? fragment.replace(/float field\(vec3 p\)\{[\s\S]*?\n\}/, field) : fragment, uniforms: { uMode: { value: 0 } }, depthTest: false, depthWrite: false });
   const geometry = new THREE.PlaneGeometry(2, 2); scene.add(new THREE.Mesh(geometry, material));
   const bytes: Uint8Array[] = [];
   try {
@@ -58,7 +59,7 @@ export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (
         }
       }
       if (good) { accepted.push(i); const key = `${gx},${gy},${gz}`; const bucket = grid.get(key) ?? []; bucket.push(i); grid.set(key, bucket); }
-      if (performance.now() - budget > 7) { await nextFrame(); budget = performance.now(); }
+      if (performance.now() - budget > 7) { await new Promise<void>(resolve => setTimeout(resolve, 0)); budget = performance.now(); }
     }
   }
   if (accepted.length !== count) throw new Error('The human surface could not be baked. Try returning to spatial mode and retrying.');

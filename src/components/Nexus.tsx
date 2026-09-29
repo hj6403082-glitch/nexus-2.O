@@ -13,6 +13,8 @@ import { useAudio } from '@/hooks/useAudio';
 import { useAssistant } from '@/stores/assistant';
 import { useAssistantController } from '@/ai/useAssistantController';
 import { Assistant, WakeWave } from './Assistant';
+import { Presentation } from './Presentation';
+import { WorldControls } from './WorldControls';
 import { FormControls } from './FormControls';
 import { useForm } from '@/stores/form';
 const Scene = dynamic(() => import('@/rendering/SpatialScene'), { ssr: false });
@@ -46,5 +48,5 @@ export function Nexus() {
     setReady(true); return () => query.removeEventListener('change', reduced);
   }, []);
   const tracking = () => { const status = useNexus.getState().tracking; if (['loading', 'searching', 'tracking'].includes(status)) stop(); else void start(); };
-  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''}`}><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} /><HandCursor /><AnimatePresence>{expanded && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
+  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''}`}><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} /><WorldControls /><Presentation /><HandCursor /><AnimatePresence>{expanded && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
 }

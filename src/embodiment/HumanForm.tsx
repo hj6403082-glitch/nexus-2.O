@@ -47,7 +47,7 @@ export function HumanForm() {
         // Eye lights are part of this buffer, not a separately animated mesh.
         for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.116 : .116, .74, .304], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
         g.setAttribute('aSeed', new THREE.BufferAttribute(captured.seeds, 1));
-        uniforms.current.uSize.value = count > 10000 ? .012 : .015;
+        uniforms.current.uSize.value = count > 10000 ? .019 : .024;
         setGeometry(g); useForm.setState({ ready: true, progress: '' });
       } catch (error) {
         if (mounted.current) useForm.setState({ target: 'spatial', error: error instanceof Error ? error.message : 'Human form could not start. Please retry.', progress: '' });

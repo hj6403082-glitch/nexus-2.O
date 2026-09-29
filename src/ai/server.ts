@@ -12,7 +12,7 @@ export function validateRequest(value: unknown): AIRequest | null {
   }
   if (length > 24000 || messages.at(-1)?.role !== 'user') return null;
   const c = v.context as Record<string, unknown> | undefined;
-  if (!c || (!isModule(c.module) && c.module !== 'orbit') || typeof c.description !== 'string' || c.description.length > 1200) return null;
+  if (!c || (!isModule(c.module) && c.module !== 'orbit') || typeof c.description !== 'string' || c.description.length > 4000) return null;
   return { messages, context: { module: String(c.module), description: c.description, connected: c.connected === true } };
 }
 export function localRequestAllowed(request: Request, mutation = false) {
