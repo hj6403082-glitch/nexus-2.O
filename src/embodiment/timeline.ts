@@ -8,8 +8,9 @@ export class FormTimeline {
   time = 0;
   target: 'human' | 'spatial' = 'spatial';
   step(delta: number, ready: boolean) {
-    if (this.target === 'human') this.time = Math.min(ready ? FORM_DURATION : .45, this.time + Math.min(delta, .05));
-    else this.time = Math.max(0, this.time - Math.min(delta, .05) * 1.7);
+    const elapsed = Math.max(0, Math.min(delta, 1));
+    if (this.target === 'human') this.time = Math.min(ready ? FORM_DURATION : .45, this.time + elapsed);
+    else this.time = Math.max(0, this.time - elapsed * 1.7);
     return this.time;
   }
   get phase(): FormPhase {

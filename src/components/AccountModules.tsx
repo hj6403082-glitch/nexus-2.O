@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useKnowledge } from '@/stores/knowledge';
+import { Portfolio } from './Portfolio';
 type AccountData = { source: string; fetchedAt: string; symbol?: string; price?: number; change?: number; percent?: number; timestamp?: number; username?: string; followers?: number; mediaCount?: number; url?: string; media?: { id: string; caption?: string; permalink?: string; like_count?: number; comments_count?: number }[]; matches?: { id: number; home: string; away: string; date: string; status: string; score: { home: number | null; away: number | null } }[] };
 export function AccountModule({ kind }: { kind: 'stocks' | 'sports' | 'instagram' }) {
   const [symbol, setSymbol] = useState('NVDA'), [data, setData] = useState<AccountData | null>(null), [error, setError] = useState(''), [loading, setLoading] = useState(false);
@@ -10,6 +11,6 @@ export function AccountModule({ kind }: { kind: 'stocks' | 'sports' | 'instagram
     {data?.symbol && <><h3>{data.symbol}</h3><div className="diagnostics"><div><span>Latest quote</span><strong>{data.price?.toFixed(2)}</strong></div><div><span>Change</span><strong>{data.percent?.toFixed(2)}%</strong></div></div><p className="muted">Quote time: {new Date((data.timestamp ?? 0) * 1000).toLocaleString()}. Exchange delays may apply. No brokerage account is connected.</p></>}
     {data?.username && <><h3>@{data.username}</h3><div className="diagnostics"><div><span>Followers</span><strong>{data.followers?.toLocaleString() ?? 'Unavailable'}</strong></div><div><span>Posts</span><strong>{data.mediaCount?.toLocaleString() ?? 'Unavailable'}</strong></div></div><a href={data.url} target="_blank" rel="noreferrer">Open your profile ↗</a><div className="knowledge-list">{data.media?.map(m => <article key={m.id}><p>{m.caption?.slice(0, 240) || 'Instagram post'}</p><small>{m.like_count ?? '—'} likes · {m.comments_count ?? '—'} comments</small>{m.permalink?.startsWith('https://www.instagram.com/') && <p><a href={m.permalink} target="_blank" rel="noreferrer">View content ↗</a></p>}</article>)}</div></>}
     {data?.matches && <div className="knowledge-list">{data.matches.length ? data.matches.map(m => <article key={m.id}><h3>{m.home} {m.score.home ?? '–'} : {m.score.away ?? '–'} {m.away}</h3><small>{m.status} · {new Date(m.date).toLocaleString()}</small></article>) : <p>No fixtures returned for today.</p>}</div>}
-    {data && <p className="muted">{data.source} · retrieved {new Date(data.fetchedAt).toLocaleTimeString()}</p>}
+    {data && <p className="muted">{data.source} · retrieved {new Date(data.fetchedAt).toLocaleTimeString()}</p>}{kind === 'stocks' && <Portfolio />}
   </section>;
 }

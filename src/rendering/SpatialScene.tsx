@@ -6,6 +6,7 @@ import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { Atmosphere } from './Atmosphere';
 import { WorldGrade } from './WorldGrade';
+import { WorldGeometry } from './WorldGeometry';
 import { presentation, presentationEnvelopes } from '@/animations/presentation';
 import { ModuleCard } from '@/components/ModuleCard';
 import { modules, wrapIndex, type NexusModule } from '@/lib/modules';
@@ -49,6 +50,7 @@ function World() {
   const orbit = useRef({ value: angle.current, velocity: 0 });
   const drift = useRef({ value: 0, velocity: 0 });
   const time = useRef(0);
+  const zoom = useRef({ value: 1, velocity: 0 });
   const frameCount = useRef(0), sampleTime = useRef(0), lowSamples = useRef(0);
   const { camera, gl, setDpr } = useThree();
   const quality = useNexus(s => s.quality);
@@ -69,8 +71,9 @@ function World() {
     // With LOCKED at boot, time is exactly 0 and camera is exactly stationary.
     camera.position.x = Math.sin(time.current * .12) * .06;
     camera.position.y = .65 + Math.sin(time.current * .15) * .035;
-    camera.position.z = 10 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
+    camera.position.z = 10 + (1 - stepSpring(zoom.current, useForm.getState().phase === 'NORMAL' ? handSignal.zoom : 1, dt)) * 3 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
     camera.lookAt(0, .2, -2);
+    if (document.hidden || dt > .25) { frameCount.current = 0; sampleTime.current = 0; lowSamples.current = 0; if (state.fps) useNexus.setState({ fps: 0 }); return; }
     frameCount.current++; sampleTime.current += dt;
     if (sampleTime.current >= 1.5) {
       const fps = Math.round(frameCount.current / sampleTime.current);
@@ -80,7 +83,7 @@ function World() {
       frameCount.current = 0; sampleTime.current = 0;
     }
   });
-  return <><HumanForm /><PresentingHand /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
+  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
     <EffectComposer multisampling={0}><Bloom intensity={quality === 'high' ? .35 : 0} luminanceThreshold={.85} mipmapBlur /><WorldGrade /></EffectComposer>
   </>;
 }

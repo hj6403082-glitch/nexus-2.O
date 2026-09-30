@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { envelopes, FormTimeline } from '../src/embodiment/timeline';
+test('a throttled preview does not stretch an eight-second transition into minutes', () => { const clock = new FormTimeline(); clock.target = 'human'; for (let i = 0; i < 8; i++) clock.step(1, true); assert.equal(clock.phase, 'HUMANOID_ACTIVE'); });
 test('form waits for the frozen particle buffer before dissolving', () => {
   const clock = new FormTimeline(); clock.target = 'human';
   for (let i = 0; i < 600; i++) clock.step(1 / 60, false);

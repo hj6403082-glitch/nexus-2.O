@@ -8,20 +8,21 @@ import { useForm } from '@/stores/form';
 import { panelAnchor } from '@/embodiment/hand';
 export function Dialog({ title, onClose, children, className = '' }: { title: string; onClose: () => void; children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const embodied = useForm(s => s.phase === 'HUMANOID_ACTIVE') && className === 'module-panel';
+  const embodied = useForm(s => s.phase === 'HUMANOID_ACTIVE') && className.includes('module-panel');
+  const pinned = className.includes('pinned-panel');
   useEffect(() => {
-    if (!embodied) return;
+    if (!embodied || pinned) return;
     let frame = 0, last = performance.now(); const x = { value: 0, velocity: 0 }, y = { value: 0, velocity: 0 };
     const draw = (now: number) => { const element = ref.current; const dt = Math.min(.05, (now - last) / 1000); last = now;
-      if (element) { const held = panelAnchor.lift > 0 && innerWidth > 800; const dx = held ? panelAnchor.x - (innerWidth - 24 - element.offsetWidth / 2) : 0; const dy = held ? panelAnchor.y - element.offsetHeight / 2 - innerHeight / 2 : 0; element.style.translate = `${stepSpring(x, dx, dt, 65, 17)}px ${stepSpring(y, dy, dt, 65, 17)}px`; }
+      if (element) { const held = panelAnchor.lift > 0 && innerWidth > 800; const half = element.offsetHeight / 2; const heldY = Math.max(half + 24, Math.min(innerHeight - half - 24, panelAnchor.y - half)); const dx = held ? panelAnchor.x - (innerWidth - 24 - element.offsetWidth / 2) : 0; const dy = held ? heldY - innerHeight / 2 : 0; element.style.translate = `${stepSpring(x, dx, dt, 65, 17)}px ${stepSpring(y, dy, dt, 65, 17)}px`; }
       frame = requestAnimationFrame(draw);
     }; frame = requestAnimationFrame(draw); return () => { cancelAnimationFrame(frame); if (ref.current) ref.current.style.translate = ''; };
-  }, [embodied]);
+  }, [embodied, pinned]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     const frame = requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>('input,button')?.focus());
     const trap = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key === 'Escape' && !embodied) { e.preventDefault(); onClose(); }
       if (e.key !== 'Tab' || embodied) return;
       const items = ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a,input,select,textarea,[tabindex="0"]');
       if (!items?.length) return;

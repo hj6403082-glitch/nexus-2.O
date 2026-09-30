@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { GestureEngine } from './engine';
+import { BimanualZoom } from './bimanual';
 import { handSignal, useNexus } from '@/stores/nexus';
 import { modules, wrapIndex, type ModuleId } from '@/lib/modules';
 import { useAssistant } from '@/stores/assistant';
@@ -10,12 +11,13 @@ import { useForm } from '@/stores/form';
 export function useHandTracking() {
   const resources = useRef<{ stream?: MediaStream; video?: HTMLVideoElement; detector?: HandLandmarker; frame: number; generation: number }>({ frame: 0, generation: 0 });
   const engine = useRef(new GestureEngine());
+  const bimanual = useRef(new BimanualZoom());
   const stop = useCallback(() => {
     const r = resources.current; r.generation++;
     cancelAnimationFrame(r.frame); r.stream?.getTracks().forEach(t => t.stop());
     r.detector?.close(); r.video?.pause(); if (r.video) r.video.srcObject = null;
     r.stream = undefined; r.detector = undefined; r.video = undefined;
-    engine.current.reset(); handSignal.visible = false; handSignal.pinching = false;
+    engine.current.reset(); bimanual.current.reset(); handSignal.visible = false; handSignal.pinching = false;
     useNexus.setState({ tracking: 'off', gesture: 'None', confidence: 0, frozen: false, dragging: null });
   }, []);
   const start = useCallback(async () => {
@@ -33,7 +35,7 @@ export function useHandTracking() {
       if (generation !== r.generation) return;
       const detector = await HandLandmarker.createFromOptions(vision, {
         baseOptions: { modelAssetPath: '/models/hand_landmarker.task', delegate: 'CPU' },
-        runningMode: 'VIDEO', numHands: 1, minHandDetectionConfidence: .65, minHandPresenceConfidence: .65, minTrackingConfidence: .6,
+        runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: .65, minHandPresenceConfidence: .65, minTrackingConfidence: .6,
       });
       if (generation !== r.generation) { detector.close(); return; }
       r.detector = detector; useNexus.setState({ tracking: 'searching' });
@@ -45,6 +47,8 @@ export function useHandTracking() {
           lastFrame = now; lastTime = video.currentTime;
           try {
             const result = detector.detectForVideo(video, now);
+            const zoom = useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
+            if (zoom !== null) { handSignal.zoom = zoom; useNexus.setState({ tracking: 'tracking', dragging: null }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
             const points = result.landmarks[0];
             const interpreted = points ? engine.current.update(points, now) : null;
             if (interpreted) {

@@ -45,7 +45,7 @@ export function HumanForm() {
         g.setAttribute('aColor', new THREE.BufferAttribute(captured.colors, 3));
         g.setAttribute('aCard', new THREE.BufferAttribute(captured.cards, 1));
         // Eye lights are part of this buffer, not a separately animated mesh.
-        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.116 : .116, .74, .304], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
+        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.116 : .116, .74, .37], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
         g.setAttribute('aSeed', new THREE.BufferAttribute(captured.seeds, 1));
         uniforms.current.uSize.value = count > 10000 ? .019 : .024;
         setGeometry(g); useForm.setState({ ready: true, progress: '' });

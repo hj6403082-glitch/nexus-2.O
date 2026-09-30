@@ -11,7 +11,7 @@ export function Presentation() {
     let frame = 0, last = performance.now();
     const cancel = () => { presentation.time = 2.4; presentation.active = false; };
     const step = (now: number) => {
-      presentation.time = Math.min(2.4, presentation.time + Math.min(.05, (now - last) / 1000)); last = now;
+      presentation.time = Math.min(2.4, presentation.time + Math.max(0, Math.min(1, (now - last) / 1000))); last = now;
       const e = presentationEnvelopes(presentation.time);
       if (ref.current) { ref.current.style.opacity = String(e.target); ref.current.style.transform = `translate(-50%,-50%) scale(${1.3 - e.target * .3})`; ref.current.style.setProperty('--scan', `${e.scan * 100}%`); }
       if (presentation.time < 2.4 && presentation.active) frame = requestAnimationFrame(step); else { presentation.active = false; if (ref.current) ref.current.style.opacity = '0'; }

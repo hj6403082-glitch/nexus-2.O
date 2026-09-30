@@ -23,18 +23,18 @@ Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation c
 
 ## Modules
 
-- Projects and Calendar store entries in this browser. They are not synced cloud accounts.
+- Projects and Calendar store entries in this browser. Projects can attach local images and videos in IndexedDB. They are not synced cloud accounts.
 - Music plays a selected local audio file without uploading it.
 - Weather uses [Open-Meteo](https://open-meteo.com/en/docs); News loads [Hacker News headlines](https://github.com/HackerNews/API). Requests are manual, source-labelled and timestamped.
-- Stocks uses `FINNHUB_API_KEY`; Sports uses `FOOTBALL_DATA_TOKEN`.
+- Stocks includes a locally stored portfolio, quote-based valuation and sector allocation; quotes use `FINNHUB_API_KEY`. Sports uses `FOOTBALL_DATA_TOKEN`.
 - Instagram uses `INSTAGRAM_ACCESS_TOKEN`; Facebook-login tokens additionally require `INSTAGRAM_BUSINESS_ID`. Missing permissions or credentials appear as connection errors, never simulated data.
-- System shows measured browser rendering diagnostics and desktop bridge availability.
+- System shows browser rendering diagnostics, local server CPU/RAM/storage measurements and desktop bridge availability.
 
 ## Controls
 
-Arrows rotate, Enter opens, Escape closes, H toggles HUD, ? shows help, Ctrl/Command K opens the module launcher. Use Human / Spatial for the reversible particle form and the Environment selector for the six palettes. Ambient motion starts LOCKED. Sound is opt-in.
+Arrows rotate, Enter opens, Escape closes, H toggles HUD, ? shows help, Ctrl/Command K opens the module launcher. Use Human / Spatial for the reversible particle form and the Environment selector for the six procedural environments. In Human mode, use “Keep beside me · open another” to display two modules. Ambient motion starts LOCKED. Sound is opt-in.
 
-Hand tracking requires an explicit camera grant. Pinch grabs, release returns, swipe rotates, pull/push opens/closes, a still palm freezes drift, and a circle wakes NEXUS. Camera frames are processed locally using the bundled MediaPipe runtime/model. Tracking stops when the tab is hidden. Physical camera accuracy still needs device testing.
+Hand tracking requires an explicit camera grant. Pinch grabs, release returns, swipe rotates, pull/push opens/closes, a still palm freezes drift, a circle wakes NEXUS, and pinching with both hands adjusts orbit scale. Camera frames are processed locally using the bundled MediaPipe runtime/model. Tracking stops when the tab is hidden. Physical camera accuracy still needs device testing.
 
 ## Desktop bridge
 
