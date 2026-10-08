@@ -1,13 +1,12 @@
 'use client';
-import { useState } from 'react';
-import { ArrowUpRight, Search } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { AccountModule } from './AccountModules';
 import { DesktopControls } from './DesktopControls';
 import { MachineTelemetry } from './MachineTelemetry';
 import { LocalCollection, LiveFeed, MusicPlayer } from './KnowledgeModules';
 import { Dialog } from './Dialog';
 import { ModuleIcon } from './Icon';
-import { modules, moduleById } from '@/lib/modules';
+import { moduleById } from '@/lib/modules';
 import { useForm } from '@/stores/form';
 import { useNexus } from '@/stores/nexus';
 import { useAssistant } from '@/stores/assistant';
@@ -28,9 +27,4 @@ export function HelpPanel() {
   const close = useNexus(s => s.close);
   return <Dialog title="INPUT GUIDE / 01" onClose={close} className="help-panel"><h2>A little more natural.</h2><p className="panel-subtitle">Keep one hand visible, about an arm’s length from the camera.</p><div className="gesture-guide">{[['Swipe left / right', 'Move an open hand sideways to turn the orbit.'], ['Pinch & release', 'Bring thumb and index finger together to grab. Release to return the card.'], ['Pull / push', 'While pinching, move your hand toward the camera to open; away to close.'], ['Hold an open palm', 'Hold still for a moment to pause ambient movement.'], ['Two-hand zoom', 'Pinch with both hands and move them apart or together to adjust orbit scale.'], ['Draw a circle', 'Wake the AI assistant. Microphone permission remains opt-in.']].map(([a, b]) => <div key={a}><strong>{a}</strong><p>{b}</p></div>)}</div><div className="keyboard-guide"><span><kbd>←</kbd><kbd>→</kbd> Rotate</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Return</span><span><kbd>H</kbd> HUD</span><span><kbd>Ctrl / ⌘ K</kbd> Modules</span></div><p className="privacy-note">Camera frames are processed on this device. NEXUS does not upload or record them.</p></Dialog>;
 }
-function rank(name: string, query: string) { const n = name.toLowerCase(), q = query.toLowerCase().trim(); if (!q) return 0; if (n.startsWith(q)) return 1; if (n.split(/\s+/).map(w => w[0]).join('').startsWith(q)) return 2; if (n.split(/\s+/).some(w => w.startsWith(q))) return 3; return n.includes(q) ? 4 : 99; }
-export function Launcher() {
-  const [query, setQuery] = useState(''); const close = useNexus(s => s.close), open = useNexus(s => s.open);
-  const list = modules.map(m => ({ module: m, rank: rank(m.name, query) })).filter(m => m.rank < 99).sort((a, b) => a.rank - b.rank);
-  return <Dialog title="QUICK ACCESS" onClose={close} className="launcher"><label className="launcher-search"><Search size={20} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a module…" aria-label="Find a module" onKeyDown={e => { if (e.key === 'Enter' && list[0]) { useNexus.setState({ launcher: false }); open(list[0].module.id); } }} /></label><div className="launcher-results">{list.length ? list.map(({ module }) => <button key={module.id} onClick={() => { useNexus.setState({ launcher: false }); open(module.id); }}><ModuleIcon name={module.icon} /><span>{module.name}</span><small>MODULE</small><ArrowUpRight size={15} /></button>) : <p className="muted">No modules match “{query}”.</p>}</div></Dialog>;
-}
+export { Launcher } from './Launcher';
