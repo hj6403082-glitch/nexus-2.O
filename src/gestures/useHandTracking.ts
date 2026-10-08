@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { GestureEngine } from './engine';
-import { BimanualZoom } from './bimanual';
+import { BimanualZoom, BimanualGroup } from './bimanual';
 import { handSignal, useNexus } from '@/stores/nexus';
 import { modules, wrapIndex, type ModuleId } from '@/lib/modules';
 import { useAssistant } from '@/stores/assistant';
@@ -12,12 +12,13 @@ export function useHandTracking() {
   const resources = useRef<{ stream?: MediaStream; video?: HTMLVideoElement; detector?: HandLandmarker; frame: number; generation: number }>({ frame: 0, generation: 0 });
   const engine = useRef(new GestureEngine());
   const bimanual = useRef(new BimanualZoom());
+  const grouping = useRef(new BimanualGroup());
   const stop = useCallback(() => {
     const r = resources.current; r.generation++;
     cancelAnimationFrame(r.frame); r.stream?.getTracks().forEach(t => t.stop());
     r.detector?.close(); r.video?.pause(); if (r.video) r.video.srcObject = null;
     r.stream = undefined; r.detector = undefined; r.video = undefined;
-    engine.current.reset(); bimanual.current.reset(); handSignal.visible = false; handSignal.pinching = false;
+    engine.current.reset(); bimanual.current.reset(); grouping.current.reset(); handSignal.visible = false; handSignal.pinching = false;
     useNexus.setState({ tracking: 'off', gesture: 'None', confidence: 0, frozen: false, dragging: null });
   }, []);
   const start = useCallback(async () => {
@@ -47,7 +48,17 @@ export function useHandTracking() {
           lastFrame = now; lastTime = video.currentTime;
           try {
             const result = detector.detectForVideo(video, now);
-            const zoom = useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
+            const groupingMode = useForm.getState().phase === 'NORMAL' && useNexus.getState().twoHandMode === 'group';
+            if (groupingMode) {
+              bimanual.current.reset();
+              const action = grouping.current.update(result.landmarks);
+              if (action) {
+                const state = useNexus.getState();
+                if (action !== 'holding' && state.groupSelection.length >= 2) { useNexus.setState({ grouped: action === 'group' }); state.log(action === 'group' ? 'Selected modules grouped' : 'Group returned to orbit'); }
+                useNexus.setState({ tracking: 'tracking', dragging: null }); handSignal.visible = false; engine.current.reset(); r.frame = requestAnimationFrame(tick); return;
+              }
+            } else grouping.current.reset();
+            const zoom = !groupingMode && useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
             if (zoom !== null) { handSignal.zoom = zoom; useNexus.setState({ tracking: 'tracking', dragging: null }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
             const points = result.landmarks[0];
             const interpreted = points ? engine.current.update(points, now) : null;

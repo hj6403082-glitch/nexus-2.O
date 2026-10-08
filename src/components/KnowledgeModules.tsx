@@ -4,10 +4,10 @@ import { useKnowledge } from '@/stores/knowledge';
 import { useWorld } from '@/stores/world';
 import { ProjectMedia } from './ProjectMedia';
 import { deleteProjectAssets } from '@/knowledge/media';
-type Entry = { id: string; title: string; detail: string };
+import { parseEntries, type LocalEntry as Entry } from '@/knowledge/entries';
 function useEntries(key: string) {
   const [entries, setEntries] = useState<Entry[]>([]), [loaded, setLoaded] = useState(false), [error, setError] = useState('');
-  useEffect(() => { try { const value = JSON.parse(localStorage.getItem(`nexus:${key}`) || '[]'); if (Array.isArray(value)) setEntries(value.filter(x => typeof x.id === 'string' && typeof x.title === 'string' && typeof x.detail === 'string')); } catch { setError('Saved entries could not be read.'); } setLoaded(true); }, [key]);
+  useEffect(() => { try { setEntries(parseEntries(localStorage.getItem(`nexus:${key}`))); setLoaded(true); } catch { setError('Saved entries could not be read. Editing is disabled to preserve your existing data.'); } }, [key]);
   useEffect(() => { if (!loaded) return; try { localStorage.setItem(`nexus:${key}`, JSON.stringify(entries)); useKnowledge.getState().publish(key, entries); } catch { setError('Browser storage is full or unavailable. Changes are not saved.'); } }, [entries, loaded, key]);
   return { entries, setEntries, loaded, error, setError };
 }

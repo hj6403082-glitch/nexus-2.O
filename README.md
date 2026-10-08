@@ -32,7 +32,7 @@ Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation c
 
 ## Controls
 
-Arrows rotate, Enter opens, Escape closes, H toggles HUD, ? shows help, Ctrl/Command K opens the module launcher. Use Human / Spatial for the reversible particle form and the Environment selector for the six procedural environments. In Human mode, use “Keep beside me · open another” to display two modules. Ambient motion starts LOCKED. Sound is opt-in.
+Arrows rotate, Enter opens, Escape closes, H toggles HUD, ? shows help, Ctrl/Command K opens the module launcher. Use Human / Spatial for the reversible particle form and the Environment selector for the six procedural environments. In Human mode, use “Keep beside me · open another” to display two modules. Use Group modules to select two or three cards, then group/split with buttons or the optional two-hand gesture mode. Ambient motion starts LOCKED. Sound is opt-in.
 
 Hand tracking requires an explicit camera grant. Pinch grabs, release returns, swipe rotates, pull/push opens/closes, a still palm freezes drift, a circle wakes NEXUS, and pinching with both hands adjusts orbit scale. Camera frames are processed locally using the bundled MediaPipe runtime/model. Tracking stops when the tab is hidden. Physical camera accuracy still needs device testing.
 
@@ -50,3 +50,6 @@ node scripts/check-ai-api.mjs
 ```
 
 The HTTP check needs the server running on port 3001, or `NEXUS_TEST_URL`. It does not make a paid model request. Unit tests cover gestures, spring rest, transition timelines, local request boundaries, command validation, stream chunking, desktop resolution and provider routing. A passing test suite does not substitute for physical webcam, voice, provider-account or GPU performance testing.
+
+
+Optional live AI verification: run `node scripts/check-ai-live.mjs` while NEXUS is running. This makes one real request through your configured model provider; provider usage charges can apply.

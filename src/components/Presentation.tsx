@@ -6,13 +6,15 @@ import { presentation, presentationEnvelopes } from '@/animations/presentation';
 export function Presentation() {
   const expanded = useNexus(s => s.expanded), ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!expanded || useForm.getState().phase !== 'NORMAL') { presentation.active = false; presentation.time = 2.4; return; }
+    if (!expanded || useForm.getState().phase !== 'NORMAL') { presentation.active = false; presentation.time = 2.4; useNexus.setState({ presenting: false }); return; }
     presentation.module = expanded; presentation.time = 0; presentation.active = true;
+    useNexus.setState({ presenting: true });
     let frame = 0, last = performance.now();
-    const cancel = () => { presentation.time = 2.4; presentation.active = false; };
+    const cancel = () => { presentation.time = 2.4; presentation.active = false; useNexus.setState({ presenting: false }); if (ref.current) ref.current.style.opacity = '0'; };
     const step = (now: number) => {
       presentation.time = Math.min(2.4, presentation.time + Math.max(0, Math.min(1, (now - last) / 1000))); last = now;
       const e = presentationEnvelopes(presentation.time);
+      if (presentation.time >= 1.5 && useNexus.getState().presenting) useNexus.setState({ presenting: false });
       if (ref.current) { ref.current.style.opacity = String(e.target); ref.current.style.transform = `translate(-50%,-50%) scale(${1.3 - e.target * .3})`; ref.current.style.setProperty('--scan', `${e.scan * 100}%`); }
       if (presentation.time < 2.4 && presentation.active) frame = requestAnimationFrame(step); else { presentation.active = false; if (ref.current) ref.current.style.opacity = '0'; }
     };

@@ -24,21 +24,26 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   const active = wrapIndex(index) === ordinal;
   const dragX = useRef({ value: 0, velocity: 0 }), dragY = useRef({ value: 0, velocity: 0 });
   const hover = useRef({ value: 0, velocity: 0 });
+  const grouping = useRef({ value: 0, velocity: 0 });
   const material = useRef<THREE.MeshStandardMaterial>(null);
   useFrame((_, dt) => {
     if (!group.current) return;
     const a = ordinal * Math.PI * 2 / modules.length - angle.current;
-    const state = useNexus.getState(), grabbed = state.dragging === module.id;
+    const state = useNexus.getState(), member = state.groupSelection.indexOf(module.id);
+    const grouped = state.grouped && state.groupSelection.length >= 2;
+    const grabbed = state.dragging === module.id || (grouped && member >= 0 && state.dragging !== null && state.groupSelection.includes(state.dragging));
     const hx = stepSpring(dragX.current, grabbed ? (handSignal.x - .5) * 8 : 0, dt);
     const hy = stepSpring(dragY.current, grabbed ? (.5 - handSignal.y) * 5 : 0, dt);
     const raised = stepSpring(hover.current, state.hovered === module.id ? .12 : 0, dt, 140, 23);
-    group.current.position.set(Math.sin(a) * 5.2 + hx, (Math.sin(time.current * .4 + ordinal) - Math.sin(ordinal)) * .08 + hy + raised, Math.cos(a) * 5.2 - 3.5);
-    group.current.rotation.y = Math.sin(a) * .18;
+    const joined = stepSpring(grouping.current, grouped && member >= 0 ? 1 : 0, dt, 65, 17);
+    const clusterX = (member - (state.groupSelection.length - 1) / 2) * 2.3;
+    group.current.position.set(THREE.MathUtils.lerp(Math.sin(a) * 5.2, clusterX, joined) + hx, (Math.sin(time.current * .4 + ordinal) - Math.sin(ordinal)) * .08 + hy + raised, THREE.MathUtils.lerp(Math.cos(a) * 5.2 - 3.5, 1.5, joined));
+    group.current.rotation.y = Math.sin(a) * .18 * (1 - joined);
     group.current.updateWorldMatrix(true, false);
     cardMatrices[ordinal].copy(group.current.matrixWorld);
     const frontal = Math.cos(a);
-    group.current.visible = frontal > .1 && !expanded && formSignal.dissolve < .999;
-    if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * (1 - formSignal.dissolve)); html.current.style.display = group.current.visible ? '' : 'none'; }
+    group.current.visible = (grouped ? member >= 0 : frontal > .1 || joined > .01) && (!expanded || (presentation.active && presentation.module === module.id && presentation.time < 1.5)) && formSignal.dissolve < .999;
+    if (html.current) { html.current.style.opacity = String(THREE.MathUtils.lerp(Math.max(.25, (frontal + 1) / 2), 1, joined) * (1 - formSignal.dissolve)); html.current.style.display = group.current.visible ? '' : 'none'; }
     if (material.current) { const centered = Math.pow(Math.max(0, frontal), 24); material.current.emissive.set(centered > .5 ? '#948257' : module.accent); material.current.emissiveIntensity = .04 + centered * .06; material.current.opacity = .55 * (1 - formSignal.dissolve); }
   });
   return <group ref={group} scale={.72}>
