@@ -1,5 +1,5 @@
 import { localRequestAllowed, readBoundedJson } from '@/ai/server';
-import { executeDesktop, permissionMessage, validateDesktop, verbs } from '@/desktop/bridge';
+import { DesktopError, executeDesktop, permissionMessage, validateDesktop, verbs } from '@/desktop/bridge';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
@@ -14,5 +14,5 @@ export async function POST(request: Request) {
   try { input = validateDesktop(await readBoundedJson(request, 16000)); } catch { return Response.json({ error: 'Invalid action.' }, { status: 400 }); }
   if (!input) return Response.json({ error: 'Unknown or invalid desktop action.' }, { status: 400 });
   try { return Response.json(await executeDesktop(input)); }
-  catch (error) { const message = error instanceof Error ? error.message : ''; return Response.json({ error: /^(No such|Use an|Volume must|Enter the)/.test(message) ? message : permissionMessage(error) }, { status: 400 }); }
+  catch (error) { return Response.json({ error: error instanceof DesktopError ? error.message : permissionMessage(error) }, { status: error instanceof DesktopError ? 422 : 400 }); }
 }
