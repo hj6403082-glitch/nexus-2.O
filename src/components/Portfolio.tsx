@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useKnowledge } from '@/stores/knowledge';
-import { portfolioTotals, type Holding, type Quote } from '@/knowledge/portfolio';
+import { parseHoldings, portfolioTotals, type Holding, type Quote } from '@/knowledge/portfolio';
 export function Portfolio() {
   const [holdings, setHoldings] = useState<Holding[]>([]), [ready, setReady] = useState(false), [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [symbol, setSymbol] = useState(''), [shares, setShares] = useState(''), [cost, setCost] = useState(''), [sector, setSector] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
-  useEffect(() => { try { const value = JSON.parse(localStorage.getItem('nexus:portfolio') || '[]'); if (Array.isArray(value)) setHoldings(value.filter(h => typeof h.id === 'string' && /^[A-Z][A-Z0-9.-]{0,14}$/.test(h.symbol) && Number.isFinite(h.shares) && h.shares > 0 && Number.isFinite(h.cost) && h.cost >= 0 && typeof h.sector === 'string').slice(0, 20)); } catch { setError('Saved holdings could not be read.'); } setReady(true); }, []);
+  useEffect(() => { try { setHoldings(parseHoldings(localStorage.getItem('nexus:portfolio'))); setReady(true); } catch { setError('Saved holdings could not be read. Editing is disabled to preserve your existing data.'); } }, []);
   useEffect(() => { if (!ready) return; try { localStorage.setItem('nexus:portfolio', JSON.stringify(holdings)); } catch { setError('Browser storage is unavailable. Changes are not saved.'); } }, [holdings, ready]);
   const { priced, value, basis, sectors } = portfolioTotals(holdings, quotes);
   useEffect(() => { if (ready) useKnowledge.getState().publish('stocks', { holdings, quotes, pricedCount: priced.length, value, costBasisForPricedHoldings: basis, sectors, note: 'User-entered holdings. Quotes may be delayed; missing quotes are not valued.' }); }, [holdings, quotes, ready]); // eslint-disable-line react-hooks/exhaustive-deps
