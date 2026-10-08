@@ -16,6 +16,7 @@ import { stepSpring } from '@/animations/spring';
 import { HumanForm } from '@/embodiment/HumanForm';
 import { PresentingHand } from '@/embodiment/PresentingHand';
 import { cardMatrices, formSignal, useForm } from '@/stores/form';
+import { cardTint, type CardTint } from './gold';
 
 function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: number; angle: React.RefObject<number>; time: React.RefObject<number> }) {
   const group = useRef<THREE.Group>(null);
@@ -25,6 +26,7 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   const dragX = useRef({ value: 0, velocity: 0 }), dragY = useRef({ value: 0, velocity: 0 });
   const hover = useRef({ value: 0, velocity: 0 });
   const material = useRef<THREE.MeshStandardMaterial>(null);
+  const tint = useRef<CardTint>({ color: new THREE.Color(), intensity: 0 });
   useFrame((_, dt) => {
     if (!group.current) return;
     const a = ordinal * Math.PI * 2 / modules.length - angle.current;
@@ -39,7 +41,13 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
     const frontal = Math.cos(a);
     group.current.visible = frontal > .1 && !expanded && formSignal.dissolve < .999;
     if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * (1 - formSignal.dissolve)); html.current.style.display = group.current.visible ? '' : 'none'; }
-    if (material.current) { const centered = Math.pow(Math.max(0, frontal), 24); material.current.emissive.set(centered > .5 ? '#948257' : module.accent); material.current.emissiveIntensity = .04 + centered * .06; material.current.opacity = .55 * (1 - formSignal.dissolve); }
+    if (material.current) {
+      const warned = state.warnings.includes(module.id);
+      cardTint(module.accent, frontal, warned, tint.current);
+      material.current.emissive.copy(tint.current.color);
+      material.current.emissiveIntensity = tint.current.intensity;
+      material.current.opacity = .55 * (1 - formSignal.dissolve);
+    }
   });
   return <group ref={group} scale={.72}>
     <RoundedBox args={[3.03, 3.66, .045]} radius={.08} smoothness={4}><meshStandardMaterial ref={material} color="#0b1724" metalness={.65} roughness={.27} transparent opacity={.55} emissive={module.accent} emissiveIntensity={.05} /></RoundedBox>
