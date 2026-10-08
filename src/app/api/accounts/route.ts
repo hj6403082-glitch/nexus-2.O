@@ -17,6 +17,14 @@ export async function GET(request: Request) {
     if (module === 'sports') {
       const token = process.env.FOOTBALL_DATA_TOKEN;
       if (!token) return Response.json({ error: 'Connect football-data.org by setting FOOTBALL_DATA_TOKEN on the server, then restart NEXUS.' }, { status: 503 });
+      if (params.get('view') === 'standings') {
+        const competition = params.get('competition') || 'PL';
+        if (!['PL', 'PD', 'BL1', 'SA', 'FL1'].includes(competition)) return Response.json({ error: 'Choose a supported league.' }, { status: 400 });
+        const result = await providerJson(`https://api.football-data.org/v4/competitions/${competition}/standings`, { 'X-Auth-Token': token });
+        const total = result.standings?.find((standing: { type: string }) => standing.type === 'TOTAL');
+        if (!total?.table) throw new Error('Standings are unavailable for this league and account.');
+        return Response.json({ source: 'football-data.org', fetchedAt: new Date().toISOString(), competition: result.competition?.name || competition, standings: total.table.slice(0, 30).map((row: { position: number; team: { id: number; name: string }; playedGames: number; won: number; draw: number; lost: number; points: number; goalDifference: number }) => ({ position: row.position, id: row.team.id, name: row.team.name, played: row.playedGames, won: row.won, drawn: row.draw, lost: row.lost, points: row.points, difference: row.goalDifference })) });
+      }
       const result = await providerJson('https://api.football-data.org/v4/matches', { 'X-Auth-Token': token });
       return Response.json({ source: 'football-data.org', fetchedAt: new Date().toISOString(), matches: (result.matches ?? []).slice(0, 20).map((m: { id: number; utcDate: string; status: string; homeTeam: { name: string }; awayTeam: { name: string }; score: { fullTime: { home: number | null; away: number | null } } }) => ({ id: m.id, date: m.utcDate, status: m.status, home: m.homeTeam.name, away: m.awayTeam.name, score: m.score.fullTime })) });
     }

@@ -11,6 +11,12 @@ float field(vec3 p){
  float face=ell(p-vec3(0.,.60,.075),vec3(.29,.31,.265));
  head=sm(head,face,.12);
  head=sm(head,ell(p-vec3(0.,.66,.285),vec3(.075,.135,.09)),.10);
+ head=sm(head,ell(p-vec3(.335,.70,-.015),vec3(.06,.13,.075)),.045);
+ head=sm(head,ell(p-vec3(-.335,.70,-.015),vec3(.06,.13,.075)),.045);
+ // Recessed eye sockets and a narrow mouth make the neutral face readable.
+ head=max(head,-ell(p-vec3(.12,.765,.31),vec3(.088,.048,.075)));
+ head=max(head,-ell(p-vec3(-.12,.765,.31),vec3(.088,.048,.075)));
+ head=max(head,-ell(p-vec3(0.,.48,.30),vec3(.135,.016,.075)));
  float neck=ell(p-vec3(0.,.07,.035),vec3(.16,.37,.175));
  float shoulders=ell(p-vec3(0.,-.35,.055),vec3(.69,.235,.28));
  float chest=ell(p-vec3(0.,-.73,.07),vec3(.535,.46,.285));

@@ -7,4 +7,4 @@ export const worlds = [
   { name: 'Ocean Platform', fog: '#061c28', light: '#81cce9', grid: '#225970', contrast: 1.08, warmth: -.2 },
   { name: 'Fog Chamber', fog: '#18202a', light: '#c5d5df', grid: '#3b4b57', contrast: .85, warmth: .02 },
 ] as const;
-export const useWorld = create<{ index: number; set: (index: number) => void }>(set => ({ index: 0, set: index => set({ index: Math.max(0, Math.min(5, index)) }) }));
+export const useWorld = create<{ index: number; weatherCode: number; set: (index: number) => void }>(set => ({ index: 0, weatherCode: 0, set: index => set({ index: Math.max(0, Math.min(5, index)) }) }));

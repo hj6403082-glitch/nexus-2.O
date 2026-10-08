@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Atmosphere } from './Atmosphere';
 import { WorldGrade } from './WorldGrade';
 import { WorldGeometry } from './WorldGeometry';
+import { WeatherEffects } from './WeatherEffects';
 import { presentation, presentationEnvelopes } from '@/animations/presentation';
 import { ModuleCard } from '@/components/ModuleCard';
 import { modules, wrapIndex, type NexusModule } from '@/lib/modules';
@@ -83,7 +84,7 @@ function World() {
       frameCount.current = 0; sampleTime.current = 0;
     }
   });
-  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
+  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><WeatherEffects time={time} /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
     <EffectComposer multisampling={0}><Bloom intensity={quality === 'high' ? .35 : 0} luminanceThreshold={.85} mipmapBlur /><WorldGrade /></EffectComposer>
   </>;
 }

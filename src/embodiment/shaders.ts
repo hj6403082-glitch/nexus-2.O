@@ -38,7 +38,7 @@ void main(){
  vVisibility=step(.08,uTime)*smoothRange(.45+delay,.75+delay,uTime);
  if(eye>.5)vVisibility*=smoothRange(6.9,7.8,uTime);
  vec4 mv=modelViewMatrix*vec4(p,1.);vView=mv.xyz;
- vRadius=mix(.006,uSize,body);gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
+ vRadius=mix(.006,uSize,body)*(1.+eye*.7);gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
  gl_Position=projectionMatrix*mv;
 }`;
 export const humanFragment = `
