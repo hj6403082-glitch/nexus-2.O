@@ -13,6 +13,7 @@ export function useControls() {
       if (e.key === 'Enter' && !(e.target as HTMLElement)?.closest('button,a')) { e.preventDefault(); state.open(); }
       if (e.key.toLowerCase() === 'h') useNexus.setState({ hud: !state.hud });
       if (e.key === '?') useNexus.setState({ help: !state.help });
+      if (e.key.toLowerCase() === 'g' && !state.expanded) state.setGrouped(!state.grouped);
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);

@@ -16,8 +16,11 @@ import { stepSpring } from '@/animations/spring';
 import { HumanForm } from '@/embodiment/HumanForm';
 import { PresentingHand } from '@/embodiment/PresentingHand';
 import { cardMatrices, formSignal, useForm } from '@/stores/form';
+import { clusterMembers, clusterTarget } from './cluster';
 import { cardTint, type CardTint } from './gold';
 
+const moduleIds = modules.map(m => m.id);
+const EMPTY: string[] = [];
 function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: number; angle: React.RefObject<number>; time: React.RefObject<number> }) {
   const group = useRef<THREE.Group>(null);
   const html = useRef<HTMLDivElement>(null);
@@ -25,6 +28,8 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   const active = wrapIndex(index) === ordinal;
   const dragX = useRef({ value: 0, velocity: 0 }), dragY = useRef({ value: 0, velocity: 0 });
   const hover = useRef({ value: 0, velocity: 0 });
+  const gather = useRef({ value: 0, velocity: 0 });
+  const slot = useRef<[number, number, number]>([0, 2, -1.4]);
   const material = useRef<THREE.MeshStandardMaterial>(null);
   const tint = useRef<CardTint>({ color: new THREE.Color(), intensity: 0 });
   useFrame((_, dt) => {
@@ -34,12 +39,21 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
     const hx = stepSpring(dragX.current, grabbed ? (handSignal.x - .5) * 8 : 0, dt);
     const hy = stepSpring(dragY.current, grabbed ? (.5 - handSignal.y) * 5 : 0, dt);
     const raised = stepSpring(hover.current, state.hovered === module.id ? .12 : 0, dt, 140, 23);
-    group.current.position.set(Math.sin(a) * 5.2 + hx, (Math.sin(time.current * .4 + ordinal) - Math.sin(ordinal)) * .08 + hy + raised, Math.cos(a) * 5.2 - 3.5);
-    group.current.rotation.y = Math.sin(a) * .18;
+    // Grouping lerps this card off its orbit slot into the cluster grid; a card
+    // that leaves the group keeps its last slot and springs back (split = orbit
+    // spring in reverse).
+    const members = state.grouped ? clusterMembers(state.selected, moduleIds) : EMPTY;
+    const rank = members.indexOf(module.id);
+    if (rank >= 0) slot.current = clusterTarget(rank, members.length);
+    const g = stepSpring(gather.current, rank >= 0 ? 1 : 0, dt, 90, 20);
+    const [cx, cy, cz] = slot.current;
+    const ox = Math.sin(a) * 5.2 + hx, oy = (Math.sin(time.current * .4 + ordinal) - Math.sin(ordinal)) * .08 + hy + raised, oz = Math.cos(a) * 5.2 - 3.5;
+    group.current.position.set(ox + (cx - ox) * g, oy + (cy - oy) * g, oz + (cz - oz) * g);
+    group.current.rotation.y = Math.sin(a) * .18 * (1 - g);
     group.current.updateWorldMatrix(true, false);
     cardMatrices[ordinal].copy(group.current.matrixWorld);
     const frontal = Math.cos(a);
-    group.current.visible = frontal > .1 && !expanded && formSignal.dissolve < .999;
+    group.current.visible = (frontal > .1 || g > .02) && !expanded && formSignal.dissolve < .999;
     if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * (1 - formSignal.dissolve)); html.current.style.display = group.current.visible ? '' : 'none'; }
     if (material.current) {
       const warned = state.warnings.includes(module.id);
