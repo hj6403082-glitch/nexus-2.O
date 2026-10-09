@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Atmosphere } from './Atmosphere';
 import { WorldGrade } from './WorldGrade';
 import { WorldGeometry } from './WorldGeometry';
+import { ProjectWorld } from './ProjectWorld';
 import { WeatherEffects } from './WeatherEffects';
 import { presentation, presentationEnvelopes } from '@/animations/presentation';
 import { ModuleCard } from '@/components/ModuleCard';
@@ -18,6 +19,7 @@ import { PresentingHand } from '@/embodiment/PresentingHand';
 import { cardMatrices, formSignal, useForm } from '@/stores/form';
 import { clusterMembers, clusterTarget } from './cluster';
 import { cardTint, type CardTint } from './gold';
+import { useProject } from '@/stores/project';
 
 const moduleIds = modules.map(m => m.id);
 const EMPTY: string[] = [];
@@ -29,6 +31,7 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   const dragX = useRef({ value: 0, velocity: 0 }), dragY = useRef({ value: 0, velocity: 0 });
   const hover = useRef({ value: 0, velocity: 0 });
   const gather = useRef({ value: 0, velocity: 0 });
+  const recede = useRef({ value: 0, velocity: 0 });
   const slot = useRef<[number, number, number]>([0, 2, -1.4]);
   const material = useRef<THREE.MeshStandardMaterial>(null);
   const tint = useRef<CardTint>({ color: new THREE.Color(), intensity: 0 });
@@ -53,14 +56,18 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
     group.current.updateWorldMatrix(true, false);
     cardMatrices[ordinal].copy(group.current.matrixWorld);
     const frontal = Math.cos(a);
-    group.current.visible = (frontal > .1 || g > .02) && !expanded && formSignal.dissolve < .999;
-    if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * (1 - formSignal.dissolve)); html.current.style.display = group.current.visible ? '' : 'none'; }
+    // Entering a project world recedes the whole orbit so the floating island
+    // is the subject; leaving it springs the orbit back.
+    const rec = stepSpring(recede.current, useProject.getState().focused ? 1 : 0, dt, 60, 18);
+    const fade = (1 - formSignal.dissolve) * (1 - rec);
+    group.current.visible = (frontal > .1 || g > .02) && !expanded && fade > .006;
+    if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * fade); html.current.style.display = group.current.visible ? '' : 'none'; }
     if (material.current) {
       const warned = state.warnings.includes(module.id);
       cardTint(module.accent, frontal, warned, tint.current);
       material.current.emissive.copy(tint.current.color);
-      material.current.emissiveIntensity = tint.current.intensity;
-      material.current.opacity = .55 * (1 - formSignal.dissolve);
+      material.current.emissiveIntensity = tint.current.intensity * (1 - rec);
+      material.current.opacity = .55 * fade;
     }
   });
   return <group ref={group} scale={.72}>
@@ -106,7 +113,7 @@ function World() {
       frameCount.current = 0; sampleTime.current = 0;
     }
   });
-  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><WeatherEffects time={time} /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
+  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><ProjectWorld time={time} /><WeatherEffects time={time} /><Atmosphere motionTime={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
     <EffectComposer multisampling={0}><Bloom intensity={quality === 'high' ? .35 : 0} luminanceThreshold={.85} mipmapBlur /><WorldGrade /></EffectComposer>
   </>;
 }

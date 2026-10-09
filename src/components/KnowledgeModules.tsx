@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useKnowledge } from '@/stores/knowledge';
 import { useWorld } from '@/stores/world';
+import { useProject } from '@/stores/project';
 import { ProjectMedia } from './ProjectMedia';
 import { deleteProjectAssets } from '@/knowledge/media';
 type Entry = { id: string; title: string; detail: string };
@@ -19,7 +20,7 @@ export function LocalCollection({ kind }: { kind: 'projects' | 'calendar' }) {
       {kind === 'calendar' ? <input aria-label="Event date and time" type="datetime-local" required value={detail} onChange={e => setDetail(e.target.value)} /> : <textarea aria-label="Project notes" placeholder="Description, prompt history, GitHub URL…" value={detail} maxLength={5000} required onChange={e => setDetail(e.target.value)} />}
       <button className="text-button" disabled={!loaded}>Add {kind === 'projects' ? 'project' : 'event'} +</button>
     </form>{error && <p role="alert">{error}</p>}
-    <div className="knowledge-list">{(kind === 'calendar' ? [...entries].sort((a, b) => a.detail.localeCompare(b.detail)) : entries).map(entry => <article key={entry.id}><h3>{entry.title}</h3><p>{kind === 'calendar' ? new Date(entry.detail).toLocaleString() : entry.detail}</p><button className="text-button" onClick={async () => { try { if (kind === 'projects') await deleteProjectAssets(entry.id); setEntries(v => v.filter(x => x.id !== entry.id)); } catch { setError('Could not remove this project and its media.'); } }}>Remove</button>{kind === 'projects' && <ProjectMedia project={entry.id} />}</article>)}{loaded && !entries.length && <p className="muted">No {kind === 'projects' ? 'projects' : 'events'} yet. Add your first above.</p>}</div>
+    <div className="knowledge-list">{(kind === 'calendar' ? [...entries].sort((a, b) => a.detail.localeCompare(b.detail)) : entries).map(entry => <article key={entry.id}><h3>{entry.title}</h3><p>{kind === 'calendar' ? new Date(entry.detail).toLocaleString() : entry.detail}</p><div className="entry-actions">{kind === 'projects' && <button className="text-button" onClick={() => useProject.getState().enter({ id: entry.id, title: entry.title, detail: entry.detail })}>Enter world ↗</button>}<button className="text-button" onClick={async () => { try { if (kind === 'projects') { if (useProject.getState().focused?.id === entry.id) useProject.getState().exit(); await deleteProjectAssets(entry.id); } setEntries(v => v.filter(x => x.id !== entry.id)); } catch { setError('Could not remove this project and its media.'); } }}>Remove</button></div>{kind === 'projects' && <ProjectMedia project={entry.id} />}</article>)}{loaded && !entries.length && <p className="muted">No {kind === 'projects' ? 'projects' : 'events'} yet. Add your first above.</p>}</div>
   </section>;
 }
 type Weather = { place: string; current: { temperature_2m: number; relative_humidity_2m: number; wind_speed_10m: number; weather_code: number }; daily: { time: string[]; temperature_2m_max: number[]; temperature_2m_min: number[] }; fetchedAt: string; sourceUrl: string };

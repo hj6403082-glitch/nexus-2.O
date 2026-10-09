@@ -4,6 +4,7 @@ import { Effect } from 'postprocessing';
 import { Uniform, Vector3 } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useWorld, worlds, type WorldGrade as Grade } from '@/stores/world';
+import { useProject } from '@/stores/project';
 // Full-screen filmic grade. Violet goes into the shadows, warm white into the
 // highlights, the mid-tones are untouched, contrast pivots at 18% grey, and a
 // halation term bleeds warmth out of the brightest pixels. Each world supplies
@@ -31,7 +32,9 @@ export function WorldGrade() {
     ['shadowTint', new Uniform(new Vector3())], ['highlightTint', new Uniform(new Vector3())],
   ]) }), []);
   useFrame((_, dt) => {
-    const grade = worlds[useWorld.getState().index].grade as Grade;
+    // A focused project's own grade wins; otherwise the current world's.
+    const project = useProject.getState().world;
+    const grade = (project ? project.grade : worlds[useWorld.getState().index].grade) as Grade;
     const ease = 1 - Math.exp(-dt * 3);
     for (const key of keys) { const u = effect.uniforms.get(key)!; u.value += (grade[key] - u.value) * ease; }
     (effect.uniforms.get('shadowTint')!.value as Vector3).lerp(new Vector3(...grade.shadow), ease);
