@@ -10,6 +10,7 @@ interface NexusState {
   drift: boolean; frozen: boolean; audio: boolean; hud: boolean; help: boolean; launcher: boolean;
   tracking: TrackingStatus; trackingError: string | null; gesture: Gesture; confidence: number;
   fps: number; gpu: string; quality: 'high' | 'low'; renderer: 'webgl' | 'fallback'; logs: Log[];
+  warnings: ModuleId[]; setWarning: (id: ModuleId, warned: boolean) => void;
   rotate: (direction: number) => void; select: (id: ModuleId) => void; open: (id?: ModuleId) => void;
   close: () => void; log: (message: string) => void;
 }
@@ -17,7 +18,8 @@ export const useNexus = create<NexusState>((set, get) => ({
   index: 2, expanded: null, pinned: null, hovered: null, dragging: null,
   drift: false, frozen: false, audio: false, hud: true, help: false, launcher: false,
   tracking: 'off', trackingError: null, gesture: 'None', confidence: 0,
-  fps: 0, gpu: 'Detecting', quality: 'high', renderer: 'webgl', logs: [],
+  fps: 0, gpu: 'Detecting', quality: 'high', renderer: 'webgl', logs: [], warnings: [],
+  setWarning: (id, warned) => set(s => ({ warnings: warned ? (s.warnings.includes(id) ? s.warnings : [...s.warnings, id]) : s.warnings.filter(w => w !== id) })),
   rotate: direction => { if (get().dragging || useForm.getState().phase !== 'NORMAL') return; set(s => ({ index: s.index + direction, expanded: null })); },
   select: id => {
     const current = get().index;
