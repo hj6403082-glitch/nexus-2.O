@@ -62,3 +62,21 @@ test('Phase 4 AI Worlds: modules map to valid, distinct-enough environments', ()
   assert.equal(moduleWorld.system, undefined);
   assert.equal(moduleWorld.calendar, undefined);
 });
+import { clusterMembers, clusterTarget } from '../src/rendering/cluster';
+test('grouping clusters members into a stable centred grid', () => {
+  // No selection: the whole orbit gathers, in module order.
+  const all = ['a', 'b', 'c', 'd', 'e', 'f'];
+  assert.deepEqual(clusterMembers([], all), all);
+  // A selection drives the group and keeps module order.
+  assert.deepEqual(clusterMembers(['c', 'a'], all), ['a', 'c']);
+  // Unknown ids are ignored.
+  assert.deepEqual(clusterMembers(['z'], all), all);
+  // The grid is centred: a single card sits on the axis; two straddle it.
+  assert.equal(clusterTarget(0, 1)[0], 0);
+  const [left, right] = [clusterTarget(0, 2), clusterTarget(1, 2)];
+  assert.ok(left[0] < 0 && right[0] > 0 && Math.abs(left[0] + right[0]) < 1e-9);
+  // Members are pulled nearer than the orbit (z > the orbit's -3.5 base).
+  assert.ok(clusterTarget(0, 10)[2] > -3.5);
+  // Five per row, so the sixth of six wraps to a second row (lower y).
+  assert.ok(clusterTarget(5, 6)[1] < clusterTarget(0, 6)[1]);
+});
