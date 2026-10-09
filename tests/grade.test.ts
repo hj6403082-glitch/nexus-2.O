@@ -50,3 +50,15 @@ test('six world grades are present, distinct and filmic', () => {
   assert.ok(fog.grade.contrast < 1);
   assert.ok(deck.grade.warmth > 0 && deck.grade.contrast > 1);
 });
+import { moduleWorld } from '../src/stores/world';
+test('Phase 4 AI Worlds: modules map to valid, distinct-enough environments', () => {
+  for (const [id, index] of Object.entries(moduleWorld)) {
+    assert.ok(index >= 0 && index < worlds.length, `${id} → ${index} is a real world`);
+  }
+  // The spec's named cases: Stocks takes the market-grid floor; Projects a creative room.
+  assert.equal(worlds[moduleWorld.stocks].name, 'Industrial Command Center');
+  assert.equal(worlds[moduleWorld.projects].name, 'Glass Observatory');
+  // Modules the spec leaves open (system, calendar, instagram) stay on the base world.
+  assert.equal(moduleWorld.system, undefined);
+  assert.equal(moduleWorld.calendar, undefined);
+});
