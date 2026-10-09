@@ -20,6 +20,7 @@ import { cardMatrices, formSignal, useForm } from '@/stores/form';
 import { clusterMembers, clusterTarget } from './cluster';
 import { cardTint, type CardTint } from './gold';
 import { useProject } from '@/stores/project';
+import { composeShot } from './camera';
 
 const moduleIds = modules.map(m => m.id);
 const EMPTY: string[] = [];
@@ -81,6 +82,7 @@ function World() {
   const drift = useRef({ value: 0, velocity: 0 });
   const time = useRef(0);
   const zoom = useRef({ value: 1, velocity: 0 });
+  const groupAmt = useRef({ value: 0, velocity: 0 }), projectAmt = useRef({ value: 0, velocity: 0 });
   const frameCount = useRef(0), sampleTime = useRef(0), lowSamples = useRef(0);
   const { camera, gl, setDpr } = useThree();
   const quality = useNexus(s => s.quality);
@@ -98,11 +100,16 @@ function World() {
     angle.current = stepSpring(orbit.current, state.index * Math.PI * 2 / modules.length, dt, 65, 17);
     const amount = stepSpring(drift.current, state.drift && !state.frozen && useForm.getState().phase === 'NORMAL' ? 1 : 0, dt, 18, 9);
     time.current += Math.min(dt, .05) * amount;
-    // With LOCKED at boot, time is exactly 0 and camera is exactly stationary.
-    camera.position.x = Math.sin(time.current * .12) * .06;
-    camera.position.y = .65 + Math.sin(time.current * .15) * .035;
-    camera.position.z = 10 + (1 - stepSpring(zoom.current, useForm.getState().phase === 'NORMAL' ? handSignal.zoom : 1, dt)) * 3 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
-    camera.lookAt(0, .2, -2);
+    // Cinematic shot composed from smooth amounts; all zero at boot (LOCKED,
+    // nothing grouped or focused) so time=0 keeps the camera exactly stationary.
+    const normal = useForm.getState().phase === 'NORMAL';
+    const approach = presentation.active ? presentationEnvelopes(presentation.time).approach : 0;
+    const grouped = stepSpring(groupAmt.current, normal && state.grouped ? 1 : 0, dt, 50, 16);
+    const project = stepSpring(projectAmt.current, normal && useProject.getState().focused ? 1 : 0, dt, 45, 16);
+    const shot = composeShot({ approach, grouped, project, arc: time.current * .25 });
+    const baseZ = 10 + (1 - stepSpring(zoom.current, normal ? handSignal.zoom : 1, dt)) * 3 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
+    camera.position.set(Math.sin(time.current * .12) * .06 + shot.dx, .65 + Math.sin(time.current * .15) * .035 + shot.dy, baseZ + shot.dz);
+    camera.lookAt(shot.lx, shot.ly, shot.lz);
     if (document.hidden || dt > .25) { frameCount.current = 0; sampleTime.current = 0; lowSamples.current = 0; if (state.fps) useNexus.setState({ fps: 0 }); return; }
     frameCount.current++; sampleTime.current += dt;
     if (sampleTime.current >= 1.5) {
