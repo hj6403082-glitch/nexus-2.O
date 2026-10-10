@@ -8,7 +8,7 @@ This is a working implementation, not a declaration that all seven phases have p
 | 2 | Gemini and local Ollama streaming, bounded memory/context, local commands, interruption-aware browser speech, model transformation tool | Gemini key verified; streaming provider returned temporary overload. Ollama installation pending. Studio TTS and spatial voice routing |
 | 3 | Local project notes with IndexedDB image/video attachments, local agenda, audio-file playback, Open-Meteo forecast and Hacker News headlines; local portfolio valuation and sector allocation; native machine telemetry; credential-gated Finnhub, football-data fixtures/league standings and Instagram adapters | Provider credentials and live verification; historical portfolio performance, Instagram reach/growth insights, calendar sync and project-specific spatial scenes |
 | 4 | Six distinct procedural environments, lighting and filmic grades, module presentation brackets and scan, two-hand zoom and grouping with pointer fallback, weather-driven world selection and motion-gated rain | Physical two-hand grouping verification and full camera choreography |
-| 5 | Opt-in macOS bridge with explicit verbs, installed-app resolution, execFile-only execution, loopback/origin guards, permission errors; Windows 501 | macOS runtime testing, display enumeration and placement, remaining media/capture/focus verbs and complete voice/launcher routing |
+| 5 | macOS desktop bridge removed (the project targets Windows) | Complete voice/launcher routing |
 | 6 | Exact spring rest, motion off by default, named spring intents, presentation clock with delayed panel reveal and interruption handling, six grades | Full targeting/approach/settle scene synchronization and screenshot/performance acceptance |
 | 7 | Rasterized card sources, reversible single-buffer bust, GPU bake, Poisson selection, rigid head motion, five-step voice jaw, fixed transformation count; baked hand with finger joints, viewport-relative panel anchor, edge-weighted erosion and two-panel pinning | Visual acceptance of hand articulation and two-panel layout, full phase screenshots and physical voice validation |
 
@@ -21,8 +21,6 @@ Gemini remains optional: set `AI_PROVIDER=gemini` and `GEMINI_API_KEY` in `.env.
 ## Data and platform boundaries
 
 Projects and Calendar currently use browser localStorage; they are not synced accounts. Local audio stays on the device. Weather is forecast-model output. News summaries see headlines, not full article text. Account tokens are server-only and never returned to clients.
-
-The desktop bridge is disabled unless `NEXUS_DESKTOP_ENABLED=true`, and mutating routes return 501 outside macOS. No desktop operations have been exercised on this Windows host.
 
 ## Preview
 

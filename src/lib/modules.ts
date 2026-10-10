@@ -7,8 +7,8 @@ export const modules = [
   { id: 'weather', name: 'Weather', category: 'OUTSIDE, BROUGHT IN', subtitle: 'Feel the atmosphere.', icon: 'cloud', accent: '#9de4ee', phase: 3, description: 'Location-based conditions and forecasts, followed by reactive weather environments.' },
   { id: 'ai', name: 'AI', category: 'CONTEXTUAL INTELLIGENCE', subtitle: 'A thought away.', icon: 'sparkles', accent: '#bab1ff', phase: 2, description: 'Streaming Gemini conversations, contextual commands and interruptible voice. This is the next development phase.' },
   { id: 'news', name: 'News', category: 'THE SIGNAL', subtitle: 'Understand what is changing.', icon: 'newspaper', accent: '#83b4ee', phase: 3, description: 'Source-linked stories and AI summaries. Live news integration arrives in Phase 3.' },
-  { id: 'music', name: 'Music', category: 'YOUR FREQUENCY', subtitle: 'Set the tone.', icon: 'music', accent: '#aca8ed', phase: 3, description: 'A connected music library and playback controls will arrive with the knowledge engine and desktop bridge.' },
-  { id: 'system', name: 'System', category: 'UNDER THE SURFACE', subtitle: 'Everything in balance.', icon: 'cpu', accent: '#a4d6e6', phase: 1, description: 'Live rendering and input diagnostics. Native machine telemetry requires the later desktop bridge.' },
+  { id: 'music', name: 'Music', category: 'YOUR FREQUENCY', subtitle: 'Set the tone.', icon: 'music', accent: '#aca8ed', phase: 3, description: 'A connected music library and playback controls will arrive with the knowledge engine.' },
+  { id: 'system', name: 'System', category: 'UNDER THE SURFACE', subtitle: 'Everything in balance.', icon: 'cpu', accent: '#a4d6e6', phase: 1, description: 'Live rendering and input diagnostics with local machine telemetry.' },
 ] as const;
 export type ModuleId = typeof modules[number]['id'];
 export type NexusModule = typeof modules[number];
