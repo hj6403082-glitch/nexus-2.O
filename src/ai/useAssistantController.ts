@@ -38,7 +38,10 @@ export function useAssistantController() {
     };
     const local = matchCommand(text);
     if (local) {
-      append(executeCommand(local)); if (useAssistant.getState().voice) speaker.current?.feed('', true);
+      const result = executeCommand(local);
+      if (typeof result !== 'string') { useAssistant.setState({ status: 'Thinking' }); append(await result); } else append(result);
+      if (epoch !== generation.current) return;
+      if (useAssistant.getState().voice) speaker.current?.feed('', true);
       pending.current = null; useAssistant.setState({ status: speaker.current?.speaking ? 'Speaking' : 'Idle' }); return;
     }
     const abort = new AbortController(); request.current = abort; generating.current = true;
@@ -57,7 +60,7 @@ export function useAssistantController() {
       const handle = (event: StreamEvent) => {
         if (epoch !== generation.current) return;
         if (event.type === 'text') append(event.text);
-        if (event.type === 'command') { const acknowledgement = executeCommand(event.command); append(`\n${acknowledgement}`); }
+        if (event.type === 'command') { const acknowledgement = executeCommand(event.command); if (typeof acknowledgement === 'string') append(`\n${acknowledgement}`); }
         if (event.type === 'error') throw new Error(event.message);
         if (event.type === 'done') completed = true;
       };

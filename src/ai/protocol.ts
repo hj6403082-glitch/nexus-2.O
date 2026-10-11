@@ -1,6 +1,10 @@
 import { modules, type ModuleId } from '@/lib/modules';
+import { siteByName, websiteUrl } from '@/lib/sites';
+import { matchDestination, type Destination } from '@/knowledge/destinations';
 export type AIStatus = 'Idle' | 'Listening' | 'Thinking' | 'Streaming' | 'Speaking' | 'Interrupted' | 'Offline';
-export type Command = { type: 'open'; module: ModuleId } | { type: 'rotate'; direction: 'left' | 'right' } | { type: 'close' } | { type: 'motion'; enabled: boolean } | { type: 'help' } | { type: 'transform'; form: 'human' | 'spatial' } | { type: 'youtube'; query: string };
+export type Command = { type: 'open'; module: ModuleId } | { type: 'rotate'; direction: 'left' | 'right' } | { type: 'close' } | { type: 'motion'; enabled: boolean } | { type: 'help' } | { type: 'transform'; form: 'human' | 'spatial' } | { type: 'youtube'; query: string }
+  // Local-only: produced by the phrase matcher, never accepted from the model stream.
+  | { type: 'website'; url: string; label: string } | { type: 'destination'; destination: Destination };
 export type Turn = { id: string; role: 'user' | 'assistant'; text: string; interrupted?: boolean; failed?: boolean; createdAt: number };
 export type StreamEvent = { type: 'text'; text: string } | { type: 'command'; command: Command } | { type: 'error'; message: string } | { type: 'done' };
 export const isModule = (value: unknown): value is ModuleId => typeof value === 'string' && modules.some(m => m.id === value);
@@ -29,7 +33,17 @@ export function matchCommand(text: string): Command | null {
   if (/^return to spatial mode$/.test(t)) return { type: 'transform', form: 'spatial' };
   const youtube = t.match(/^search youtube(?: for)? (.{1,200})$/);
   if (youtube) return { type: 'youtube', query: youtube[1] };
-  return null;
+  return matchWebsite(text.trim().replace(/^(?:hey\s+)?nexus[\s,:.!]*/i, '').replace(/[.!?]+$/, '').trim());
+}
+// "Open X" for a personal destination or a website. Anything else goes to the
+// model; NEXUS has no access to the computer's apps or settings.
+export function matchWebsite(text: string): Command | null {
+  const open = text.slice(0, 500).toLowerCase().match(/^(?:open|launch|start|go to|show|show me|visit|take me to) (?:the )?(.{1,500}?)(?: app| application| website| site)?$/);
+  if (!open) return null;
+  const target = open[1], destination = matchDestination(target);
+  if (destination) return { type: 'destination', destination };
+  const site = siteByName(target), url = site?.url ?? websiteUrl(target);
+  return url ? { type: 'website', url, label: site?.name ?? new URL(url).hostname } : null;
 }
 // Buffers arbitrary network chunk boundaries, including split UTF-8 codepoints.
 export class EventDecoder {

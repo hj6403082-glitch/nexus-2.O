@@ -1,5 +1,5 @@
 import { localRequestAllowed } from '@/ai/server';
-import { instagramTarget, providerJson } from '@/knowledge/providers';
+import { engagement, followerHistory, instagramTarget, parseInsights, providerJson } from '@/knowledge/providers';
 export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   if (!localRequestAllowed(request)) return Response.json({ error: 'Local requests only.' }, { status: 403 });
@@ -33,8 +33,14 @@ export async function GET(request: Request) {
       if (!token) return Response.json({ error: 'Connect your professional Instagram account by setting INSTAGRAM_ACCESS_TOKEN on the server.' }, { status: 503 });
       const target = instagramTarget(token, process.env.INSTAGRAM_BUSINESS_ID);
       const profile = await providerJson(`${target.base}/${target.account}?fields=id,username,followers_count,media_count`, { Authorization: `Bearer ${token}` });
-      const media = await providerJson(`${target.base}/${profile.id}/media?fields=id,caption,media_type,permalink,timestamp,like_count,comments_count&limit=8`, { Authorization: `Bearer ${token}` });
-      return Response.json({ source: 'Instagram Graph API', fetchedAt: new Date().toISOString(), username: profile.username, followers: profile.followers_count, mediaCount: profile.media_count, url: `https://www.instagram.com/${encodeURIComponent(profile.username)}/`, media: media.data ?? [] });
+      const media = await providerJson(`${target.base}/${profile.id}/media?fields=id,caption,media_type,media_product_type,permalink,timestamp,like_count,comments_count&limit=12`, { Authorization: `Bearer ${token}` });
+      // Insights need extra permissions; their absence degrades the chart, not the module.
+      const until = Math.floor(Date.now() / 1000), since = until - 29 * 86400;
+      const insights = await providerJson(`${target.base}/${profile.id}/insights?metric=follower_count,reach&period=day&since=${since}&until=${until}`, { Authorization: `Bearer ${token}` }).then(parseInsights).catch(() => null);
+      const items = media.data ?? [];
+      return Response.json({ source: 'Instagram Graph API', fetchedAt: new Date().toISOString(), username: profile.username, followers: profile.followers_count, mediaCount: profile.media_count, url: `https://www.instagram.com/${encodeURIComponent(profile.username)}/`, media: items,
+        history: insights && Number.isFinite(profile.followers_count) && insights.deltas.length ? followerHistory(profile.followers_count, insights.deltas) : null,
+        reach: insights?.reach ?? null, engagement: engagement(items, profile.followers_count), insightsError: insights ? null : 'Follower history and reach need the instagram_business_manage_insights (or instagram_manage_insights) permission on this token.' });
     }
     return Response.json({ error: 'Unknown account module.' }, { status: 400 });
   } catch (error) { return Response.json({ error: error instanceof Error ? error.message : 'Connection failed.' }, { status: 502 }); }

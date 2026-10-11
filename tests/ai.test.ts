@@ -7,6 +7,8 @@ test('commands match deliberate requests, not quoted or indirect mentions', () =
   assert.deepEqual(matchCommand('rotate right'), { type: 'rotate', direction: 'right' });
   assert.equal(matchCommand('Explain how to open stocks'), null);
   assert.equal(matchCommand('open stocks; delete everything'), null);
+  assert.deepEqual(matchCommand('open github.com'), { type: 'website', url: 'https://github.com/', label: 'github.com' });
+  assert.deepEqual(matchCommand('open YouTube'), { type: 'website', url: 'https://www.youtube.com/', label: 'YouTube' });
   assert.deepEqual(matchCommand('transform into a human shape'), { type: 'transform', form: 'human' });
 });
 test('model commands cannot escape the enumerated surface', () => {

@@ -48,17 +48,11 @@ export function useHandTracking() {
           lastFrame = now; lastTime = video.currentTime;
           try {
             const result = detector.detectForVideo(video, now);
-            const groupingMode = useForm.getState().phase === 'NORMAL' && useNexus.getState().twoHandMode === 'group';
-            if (groupingMode) {
-              bimanual.current.reset();
-              const action = grouping.current.update(result.landmarks);
-              if (action) {
-                const state = useNexus.getState();
-                if (action !== 'holding' && state.groupSelection.length >= 2) { useNexus.setState({ grouped: action === 'group' }); state.log(action === 'group' ? 'Selected modules grouped' : 'Group returned to orbit'); }
-                useNexus.setState({ tracking: 'tracking', dragging: null }); handSignal.visible = false; engine.current.reset(); r.frame = requestAnimationFrame(tick); return;
-              }
-            } else grouping.current.reset();
-            const zoom = !groupingMode && useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
+            if (useForm.getState().phase === 'NORMAL') {
+              const grab = result.landmarks.length >= 2 ? grouping.current.update(result.landmarks) : null;
+              if (grab) { useNexus.getState().setGrouped(grab === 'group'); useNexus.setState({ tracking: 'tracking', dragging: null, gesture: grab === 'group' ? 'Closed hand' : 'Open palm' }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
+            } else { grouping.current.reset(); }
+            const zoom = useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
             if (zoom !== null) { handSignal.zoom = zoom; useNexus.setState({ tracking: 'tracking', dragging: null }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
             const points = result.landmarks[0];
             const interpreted = points ? engine.current.update(points, now) : null;
