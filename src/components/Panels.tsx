@@ -2,6 +2,7 @@
 import { ArrowUpRight } from 'lucide-react';
 import { AccountModule } from './AccountModules';
 import { MachineTelemetry } from './MachineTelemetry';
+import { BridgeControls } from './BridgeControls';
 import { LocalCollection, LiveFeed, MusicPlayer } from './KnowledgeModules';
 import { Dialog } from './Dialog';
 import { ModuleIcon } from './Icon';
@@ -15,10 +16,12 @@ export function ModulePanel({ pinned = false }: { pinned?: boolean }) {
   const id = useNexus(s => pinned ? s.pinned : s.expanded), close = pinned ? closePinnedPanel : closeMainPanel;
   const embodied = useForm(s => s.phase === 'HUMANOID_ACTIVE');
   const fps = useNexus(s => s.fps), gpu = useNexus(s => s.gpu), quality = useNexus(s => s.quality), tracking = useNexus(s => s.tracking), renderer = useNexus(s => s.renderer);
+  const unpacked = useNexus(s => s.unpacked);
   if (!id) return null; const module = moduleById(id);
   return <Dialog title={`${module.category} / ${module.id.toUpperCase()}`} onClose={close} className={`module-panel${pinned ? ' pinned-panel' : ''}`}>
     <span className="panel-module-icon" style={{ color: module.accent }}><ModuleIcon name={module.icon} size={30} /></span><h2>{module.name}</h2><p className="panel-subtitle">{module.subtitle}</p>
-    {id === 'system' ? <><div className="diagnostics"><div><span>Render rate</span><strong>{renderer === 'fallback' ? '—' : fps || '—'} <small>FPS</small></strong></div><div><span>Quality</span><strong>{quality === 'high' ? 'Full' : 'Adaptive'}</strong></div><div><span>Input</span><strong>{tracking === 'tracking' ? 'Hand' : 'Pointer'}</strong></div><div><span>Renderer</span><strong>{renderer === 'fallback' ? '2D' : 'WebGL 2'}</strong></div></div><p className="gpu-name">{gpu}</p><p className="muted">Rendering diagnostics above; local machine measurements below.</p><MachineTelemetry /></> : id === 'stocks' || id === 'sports' || id === 'instagram' ? <AccountModule key={id} kind={id} /> : id === 'projects' || id === 'calendar' ? <LocalCollection key={id} kind={id} /> : id === 'weather' || id === 'news' ? <LiveFeed key={id} kind={id} /> : id === 'music' ? <MusicPlayer /> : <div className="connection-state"><span className="eyebrow">PHASE {module.phase} · AWAITING CONNECTION</span><p>{module.description}</p><span className="muted">The spatial controls are ready. No account is connected yet.</span></div>}
+    {id === 'system' ? <><div className="diagnostics"><div><span>Render rate</span><strong>{renderer === 'fallback' ? '—' : fps || '—'} <small>FPS</small></strong></div><div><span>Quality</span><strong>{quality === 'high' ? 'Full' : 'Adaptive'}</strong></div><div><span>Input</span><strong>{tracking === 'tracking' ? 'Hand' : 'Pointer'}</strong></div><div><span>Renderer</span><strong>{renderer === 'fallback' ? '2D' : 'WebGL 2'}</strong></div></div><p className="gpu-name">{gpu}</p><p className="muted">Rendering diagnostics above; local machine measurements below.</p><MachineTelemetry /><BridgeControls /></> : id === 'stocks' || id === 'sports' || id === 'instagram' ? <AccountModule key={id} kind={id} /> : id === 'projects' || id === 'calendar' ? <LocalCollection key={id} kind={id} /> : id === 'weather' || id === 'news' ? <LiveFeed key={id} kind={id} /> : id === 'music' ? <MusicPlayer /> : <div className="connection-state"><span className="eyebrow">PHASE {module.phase} · AWAITING CONNECTION</span><p>{module.description}</p><span className="muted">The spatial controls are ready. No account is connected yet.</span></div>}
+    {unpacked && !pinned && <div className="unpacked-subpanels"><span className="eyebrow">DEPTH EXPANDED · SUB-PANELS</span><div className="subpanel-grid">{['Overview', 'Detail', 'History', 'Related'].map(label => <div key={label} className="subpanel"><b>{label}</b><span className="muted">{module.name} · {label.toLowerCase()}</span></div>)}</div></div>}
     <div className="panel-actions"><button className="text-button" onClick={close}>{embodied ? 'Dismiss panel' : 'Return to orbit'} <ArrowUpRight size={16} /></button><button className="text-button" onClick={() => useAssistant.getState().wake()}>Ask NEXUS about this</button>{embodied && !pinned && <button className="text-button" onClick={() => useNexus.setState({ pinned: id, expanded: null, launcher: true })}>Keep beside me · open another</button>}</div>
   </Dialog>;
 }

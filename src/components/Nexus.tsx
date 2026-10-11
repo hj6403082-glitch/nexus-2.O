@@ -10,6 +10,7 @@ import { handSignal, useNexus } from '@/stores/nexus';
 import { useHandTracking } from '@/gestures/useHandTracking';
 import { useControls } from '@/hooks/useControls';
 import { useAudio } from '@/hooks/useAudio';
+import { useAmbient } from '@/hooks/useAmbient';
 import { useAssistant } from '@/stores/assistant';
 import { useAssistantController } from '@/ai/useAssistantController';
 import { Assistant, WakeWave } from './Assistant';
@@ -17,6 +18,7 @@ import { Presentation } from './Presentation';
 import { WorldControls } from './WorldControls';
 import { FormControls } from './FormControls';
 import { useForm } from '@/stores/form';
+import { useGazeTracking } from '@/embodiment/useGazeTracking';
 import { useWorld } from '@/stores/world';
 import { useProject } from '@/stores/project';
 import { ProjectWorldBanner } from './ProjectWorldBanner';
@@ -40,9 +42,12 @@ export function Nexus() {
   const [ready, setReady] = useState(false);
   const renderer = useNexus(s => s.renderer), expanded = useNexus(s => s.expanded), presenting = useNexus(s => s.presenting), pinned = useNexus(s => s.pinned), help = useNexus(s => s.help), launcher = useNexus(s => s.launcher);
   const inProject = useProject(s => !!s.focused);
-  const { start, stop } = useHandTracking(); const toggleAudio = useAudio(); useControls();
+  const { start, stop } = useHandTracking(); const toggleAudio = useAudio(); useControls(); useAmbient();
   const assistant = useAssistantController();
+  const gaze = useGazeTracking();
   const formPhase = useForm(s => s.phase);
+  // Gaze tracking only makes sense while NEXUS is embodied; stop it otherwise.
+  useEffect(() => { if (formPhase === 'NORMAL') gaze.stop(); }, [formPhase, gaze]);
   useEffect(() => {
     try { const canvas = document.createElement('canvas'); if (!canvas.getContext('webgl2')) useNexus.setState({ renderer: 'fallback', gpu: 'Unavailable' }); }
     catch { useNexus.setState({ renderer: 'fallback', gpu: 'Unavailable' }); }
@@ -56,5 +61,5 @@ export function Nexus() {
   // module morph stands down until the user exits it.
   useEffect(() => useNexus.subscribe((s, prev) => { if (s.expanded !== prev.expanded && !useProject.getState().focused) useWorld.getState().applyModule(s.expanded); }), []);
   const tracking = () => { const status = useNexus.getState().tracking; if (['loading', 'searching', 'tracking'].includes(status)) stop(); else void start(); };
-  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''}`}><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
+  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''}`}><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} gaze={gaze} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
 }

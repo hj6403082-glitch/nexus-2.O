@@ -14,6 +14,17 @@ export function clusterTarget(rank: number, total: number): Vec3 {
   const y = ((rows - 1) / 2 - row) * spanY + .2;
   return [x, y, -1.4];
 }
+// Data convergence (Phase 8): members snap into a consolidated 3D prism — a
+// tight vertical ring of cards facing inward, lifted to eye level, for instant
+// cross-analysis. Deterministic so the layout is stable and testable.
+export function prismTarget(rank: number, total: number): Vec3 {
+  const t = total <= 1 ? 0 : rank / total;
+  const angle = t * Math.PI * 2;
+  const radius = 1.65;
+  const y = (rank - (total - 1) / 2) * 0.12 + 0.25;
+  return [Math.sin(angle) * radius, y, Math.cos(angle) * radius - 1.4];
+}
+
 export function clusterMembers(selected: readonly string[], all: readonly string[]) {
   // Multi-select drives the group when the user has chosen cards; otherwise the
   // whole orbit gathers.

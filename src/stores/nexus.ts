@@ -13,6 +13,8 @@ interface NexusState {
   fps: number; gpu: string; quality: 'high' | 'low'; renderer: 'webgl' | 'fallback'; logs: Log[];
   warnings: ModuleId[]; setWarning: (id: ModuleId, warned: boolean) => void;
   selected: ModuleId[]; grouped: boolean; toggleSelect: (id: ModuleId) => void; setGrouped: (grouped: boolean) => void;
+  flung: ModuleId[]; fling: (id: ModuleId) => void; recall: (id?: ModuleId) => void;
+  prism: boolean; depth: number; unpacked: boolean; converge: () => void; expand: () => void; resetSculpt: () => void;
   rotate: (direction: number) => void; select: (id: ModuleId) => void; open: (id?: ModuleId) => void;
   close: () => void; log: (message: string) => void;
 }
@@ -21,7 +23,15 @@ export const useNexus = create<NexusState>((set, get) => ({
   drift: false, frozen: false, audio: false, hud: true, help: false, launcher: false,
   presenting: false,
   tracking: 'off', trackingError: null, gesture: 'None', confidence: 0,
-  fps: 0, gpu: 'Detecting', quality: 'high', renderer: 'webgl', logs: [], warnings: [], selected: [], grouped: false,
+  fps: 0, gpu: 'Detecting', quality: 'high', renderer: 'webgl', logs: [], warnings: [], selected: [], grouped: false, flung: [],
+  fling: id => { set(s => ({ flung: s.flung.includes(id) ? s.flung : [...s.flung, id], dragging: null })); get().log(`${id.toUpperCase()} · flung to outer orbit`); },
+  recall: id => set(s => ({ flung: id ? s.flung.filter(m => m !== id) : [] })),
+  prism: false, depth: 1, unpacked: false,
+  // Data convergence: gather the modules into a consolidated 3D data prism.
+  converge: () => { set(s => ({ prism: !s.prism, grouped: !s.prism })); get().log(get().prism ? 'Modules converged · data prism' : 'Prism released'); },
+  // Depth expansion: scale the workspace out and unpack the focused card.
+  expand: () => set(s => ({ depth: s.depth > 1.25 ? 1 : 1.5, unpacked: s.depth <= 1.25, prism: false })),
+  resetSculpt: () => set({ prism: false, depth: 1, unpacked: false }),
   setWarning: (id, warned) => set(s => ({ warnings: warned ? (s.warnings.includes(id) ? s.warnings : [...s.warnings, id]) : s.warnings.filter(w => w !== id) })),
   toggleSelect: id => set(s => ({ selected: s.selected.includes(id) ? s.selected.filter(m => m !== id) : [...s.selected, id] })),
   setGrouped: grouped => { set(s => ({ grouped, selected: grouped ? s.selected : [] })); get().log(grouped ? 'Cards grouped' : 'Cards spread to orbit'); },
@@ -35,7 +45,7 @@ export const useNexus = create<NexusState>((set, get) => ({
     set({ index: current + diff, expanded: null });
   },
   open: id => { const selected = id ?? modules[wrapIndex(get().index)].id; get().select(selected); if (selected === 'ai') { set({ dragging: null }); useAssistant.getState().wake(); } else set({ expanded: selected, presenting: useForm.getState().phase === 'NORMAL' && typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches, pinned: get().pinned === selected ? null : get().pinned, dragging: null }); get().log(`${selected.toUpperCase()} · focused`); },
-  close: () => set({ expanded: null, presenting: false, pinned: null, dragging: null, help: false, launcher: false, grouped: false, selected: [] }),
+  close: () => set({ expanded: null, presenting: false, pinned: null, dragging: null, help: false, launcher: false, grouped: false, selected: [], flung: [], prism: false, depth: 1, unpacked: false }),
   log: message => set(s => ({ logs: [...s.logs.slice(-4), { id: Date.now() + Math.random(), time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message }] })),
 }));
 // Hot tracking data never causes React renders at camera frame rate.

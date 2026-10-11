@@ -1,6 +1,6 @@
 import type { Gesture } from '@/stores/nexus';
 export type Point = { x: number; y: number; z: number };
-export type GestureResult = { gesture: Gesture; event: Gesture | null; x: number; y: number; scale: number; pinching: boolean; frozen: boolean };
+export type GestureResult = { gesture: Gesture; event: Gesture | null; x: number; y: number; scale: number; pinching: boolean; frozen: boolean; vx: number; vy: number };
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export class GestureEngine {
   private pinch = false;
@@ -9,7 +9,9 @@ export class GestureEngine {
   private cooldown = 0;
   private heldSince = 0;
   private stillPoint: Point | null = null;
-  reset() { this.pinch = false; this.pinchScale = 0; this.samples = []; this.heldSince = 0; this.stillPoint = null; this.cooldown = 0; }
+  private last: { x: number; y: number; time: number } | null = null;
+  private velocity = { x: 0, y: 0 };
+  reset() { this.pinch = false; this.pinchScale = 0; this.samples = []; this.heldSince = 0; this.stillPoint = null; this.cooldown = 0; this.last = null; this.velocity = { x: 0, y: 0 }; }
   update(points: Point[], now: number): GestureResult | null {
     if (points.length < 21) { this.reset(); return null; }
     const wrist = points[0], palm = points[9];
@@ -17,6 +19,14 @@ export class GestureEngine {
     if (scale < .025) { this.reset(); return null; }
     const x = 1 - (points[0].x + points[5].x + points[17].x) / 3;
     const y = (points[0].y + points[5].y + points[17].y) / 3;
+    // Exponentially-smoothed hand velocity (screen units / second), used to tell
+    // a fast flick release from a gentle drop.
+    if (this.last) {
+      const span = Math.max(1, now - this.last.time) / 1000;
+      this.velocity.x += ((x - this.last.x) / span - this.velocity.x) * .5;
+      this.velocity.y += ((y - this.last.y) / span - this.velocity.y) * .5;
+    }
+    this.last = { x, y, time: now };
     const ratio = distance(points[4], points[8]) / scale;
     const pinching = ratio < (this.pinch ? .48 : .32); // Hysteresis avoids repeated grab/drop.
     const fingers = [8, 12, 16, 20].filter(tip => distance(points[tip], wrist) > distance(points[tip - 2], wrist) * 1.2).length;
@@ -54,6 +64,6 @@ export class GestureEngine {
     const frozen = this.heldSince > 0 && now - this.heldSince > 900;
     if (frozen) gesture = 'Hold';
     this.pinch = pinching;
-    return { gesture, event, x, y, scale, pinching, frozen };
+    return { gesture, event, x, y, scale, pinching, frozen, vx: this.velocity.x, vy: this.velocity.y };
   }
 }

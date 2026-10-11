@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { GestureEngine } from './engine';
-import { BimanualZoom, BimanualGroup } from './bimanual';
+import { BimanualZoom, BimanualGroup, BimanualSculpt } from './bimanual';
+import { detectFlick } from '@/rendering/flick';
 import { handSignal, useNexus } from '@/stores/nexus';
 import { modules, wrapIndex, type ModuleId } from '@/lib/modules';
 import { useAssistant } from '@/stores/assistant';
@@ -13,12 +14,13 @@ export function useHandTracking() {
   const engine = useRef(new GestureEngine());
   const bimanual = useRef(new BimanualZoom());
   const grouping = useRef(new BimanualGroup());
+  const sculpting = useRef(new BimanualSculpt());
   const stop = useCallback(() => {
     const r = resources.current; r.generation++;
     cancelAnimationFrame(r.frame); r.stream?.getTracks().forEach(t => t.stop());
     r.detector?.close(); r.video?.pause(); if (r.video) r.video.srcObject = null;
     r.stream = undefined; r.detector = undefined; r.video = undefined;
-    engine.current.reset(); bimanual.current.reset(); grouping.current.reset(); handSignal.visible = false; handSignal.pinching = false;
+    engine.current.reset(); bimanual.current.reset(); grouping.current.reset(); sculpting.current.reset(); handSignal.visible = false; handSignal.pinching = false;
     useNexus.setState({ tracking: 'off', gesture: 'None', confidence: 0, frozen: false, dragging: null });
   }, []);
   const start = useCallback(async () => {
@@ -51,7 +53,11 @@ export function useHandTracking() {
             if (useForm.getState().phase === 'NORMAL') {
               const grab = result.landmarks.length >= 2 ? grouping.current.update(result.landmarks) : null;
               if (grab) { useNexus.getState().setGrouped(grab === 'group'); useNexus.setState({ tracking: 'tracking', dragging: null, gesture: grab === 'group' ? 'Closed hand' : 'Open palm' }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
-            } else { grouping.current.reset(); }
+              // Two cupped hands sculpt: inward converges to a prism, outward
+              // expands the workspace depth.
+              const sculpt = result.landmarks.length >= 2 ? sculpting.current.update(result.landmarks) : null;
+              if (sculpt) { if (sculpt === 'converge') useNexus.getState().converge(); else useNexus.getState().expand(); useNexus.setState({ tracking: 'tracking', dragging: null }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
+            } else { grouping.current.reset(); sculpting.current.reset(); }
             const zoom = useForm.getState().phase === 'NORMAL' ? bimanual.current.update(result.landmarks, handSignal.zoom) : null;
             if (zoom !== null) { handSignal.zoom = zoom; useNexus.setState({ tracking: 'tracking', dragging: null }); engine.current.reset(); r.frame = requestAnimationFrame(tick); return; }
             const points = result.landmarks[0];
@@ -71,7 +77,7 @@ export function useHandTracking() {
                   case 'Swipe left': state.rotate(1); break;
                   case 'Swipe right': state.rotate(-1); break;
                   case 'Pinch': { if (state.expanded) break; const id = hit ?? modules[wrapIndex(state.index)].id; state.select(id); useNexus.setState({ dragging: id }); break; }
-                  case 'Release': useNexus.setState({ dragging: null }); break;
+                  case 'Release': { const held = state.dragging; const flick = detectFlick(interpreted.vx, interpreted.vy); if (held && flick && !state.grouped) state.fling(held); else useNexus.setState({ dragging: null }); break; }
                   case 'Pull': state.open(state.dragging ?? undefined); break;
                   case 'Push': state.close(); break;
                   case 'Circle': useAssistant.getState().wake(); state.log('Circle detected · NEXUS awake'); break;
