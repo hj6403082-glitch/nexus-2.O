@@ -10,7 +10,7 @@ export function useControls() {
       if (e.key === 'Escape') { state.close(); useAssistant.setState({ visible: false }); window.dispatchEvent(new Event('nexus:stop-ai')); return; }
       if ((e.target as HTMLElement)?.closest('input,textarea,select,[contenteditable="true"]') || state.launcher || state.help) return;
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); state.rotate(e.key === 'ArrowRight' ? 1 : -1); }
-      if (e.key === 'Enter' && !(e.target as HTMLElement)?.closest('button,a')) { e.preventDefault(); state.open(); }
+      if (e.key === 'Enter' && !(e.target as HTMLElement)?.closest('button,a,summary,[role="button"]')) { e.preventDefault(); state.open(); }
       if (e.key.toLowerCase() === 'h') useNexus.setState({ hud: !state.hud });
       if (e.key === '?') useNexus.setState({ help: !state.help });
     };
