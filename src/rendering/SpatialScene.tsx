@@ -39,7 +39,9 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   useFrame((_, dt) => {
     if (!group.current) return;
     const a = ordinal * Math.PI * 2 / modules.length - angle.current;
-    const state = useNexus.getState(), grabbed = state.dragging === module.id;
+    const state = useNexus.getState();
+    // Dragging any grouped card carries the whole group with it.
+    const grabbed = state.dragging === module.id || (state.grouped && state.dragging !== null && state.selected.includes(module.id) && state.selected.includes(state.dragging));
     const hx = stepSpring(dragX.current, grabbed ? (handSignal.x - .5) * 8 : 0, dt);
     const hy = stepSpring(dragY.current, grabbed ? (.5 - handSignal.y) * 5 : 0, dt);
     const raised = stepSpring(hover.current, state.hovered === module.id ? .12 : 0, dt, 140, 23);
@@ -61,7 +63,7 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
     // is the subject; leaving it springs the orbit back.
     const rec = stepSpring(recede.current, useProject.getState().focused ? 1 : 0, dt, 60, 18);
     const fade = (1 - formSignal.dissolve) * (1 - rec);
-    group.current.visible = (frontal > .1 || g > .02) && !expanded && fade > .006;
+    group.current.visible = (frontal > .1 || g > .02) && (!expanded || (presentation.active && presentation.module === module.id && presentation.time < 1.5)) && fade > .006;
     if (html.current) { html.current.style.opacity = String(Math.max(.25, (frontal + 1) / 2) * fade); html.current.style.display = group.current.visible ? '' : 'none'; }
     if (material.current) {
       const warned = state.warnings.includes(module.id);

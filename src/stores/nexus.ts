@@ -8,6 +8,7 @@ type Log = { id: number; time: string; message: string };
 interface NexusState {
   index: number; expanded: ModuleId | null; pinned: ModuleId | null; hovered: ModuleId | null; dragging: ModuleId | null;
   drift: boolean; frozen: boolean; audio: boolean; hud: boolean; help: boolean; launcher: boolean;
+  presenting: boolean;
   tracking: TrackingStatus; trackingError: string | null; gesture: Gesture; confidence: number;
   fps: number; gpu: string; quality: 'high' | 'low'; renderer: 'webgl' | 'fallback'; logs: Log[];
   warnings: ModuleId[]; setWarning: (id: ModuleId, warned: boolean) => void;
@@ -18,6 +19,7 @@ interface NexusState {
 export const useNexus = create<NexusState>((set, get) => ({
   index: 2, expanded: null, pinned: null, hovered: null, dragging: null,
   drift: false, frozen: false, audio: false, hud: true, help: false, launcher: false,
+  presenting: false,
   tracking: 'off', trackingError: null, gesture: 'None', confidence: 0,
   fps: 0, gpu: 'Detecting', quality: 'high', renderer: 'webgl', logs: [], warnings: [], selected: [], grouped: false,
   setWarning: (id, warned) => set(s => ({ warnings: warned ? (s.warnings.includes(id) ? s.warnings : [...s.warnings, id]) : s.warnings.filter(w => w !== id) })),
@@ -32,8 +34,8 @@ export const useNexus = create<NexusState>((set, get) => ({
     if (diff < -5) diff += 10;
     set({ index: current + diff, expanded: null });
   },
-  open: id => { const selected = id ?? modules[wrapIndex(get().index)].id; get().select(selected); if (selected === 'ai') { set({ dragging: null }); useAssistant.getState().wake(); } else set({ expanded: selected, pinned: get().pinned === selected ? null : get().pinned, dragging: null }); get().log(`${selected.toUpperCase()} · focused`); },
-  close: () => set({ expanded: null, pinned: null, dragging: null, help: false, launcher: false, grouped: false, selected: [] }),
+  open: id => { const selected = id ?? modules[wrapIndex(get().index)].id; get().select(selected); if (selected === 'ai') { set({ dragging: null }); useAssistant.getState().wake(); } else set({ expanded: selected, presenting: useForm.getState().phase === 'NORMAL' && typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches, pinned: get().pinned === selected ? null : get().pinned, dragging: null }); get().log(`${selected.toUpperCase()} · focused`); },
+  close: () => set({ expanded: null, presenting: false, pinned: null, dragging: null, help: false, launcher: false, grouped: false, selected: [] }),
   log: message => set(s => ({ logs: [...s.logs.slice(-4), { id: Date.now() + Math.random(), time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message }] })),
 }));
 // Hot tracking data never causes React renders at camera frame rate.

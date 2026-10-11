@@ -30,9 +30,13 @@ The desktop bridge is disabled unless `NEXUS_DESKTOP_ENABLED=true`, and mutating
 After a successful production build, use `npm start -- --port 3001` for a quieter preview.
 The URL stays the same, but its local server must remain running.
 
-## Latest verification — 2026-10-03
+## Latest verification — 2026-10-08
 
-TypeScript and 28 unit tests pass. Weather and News returned live data. Gemini accepted a minimal generation request; streamed generation later returned upstream 503, now handled with a bounded retry and a clear error. New UI additions still require final visual checks. Never interpret credential-gated adapters as verified account integrations.
+31 unit tests and TypeScript checks pass. Portfolio storage now also rejects corrupt records without overwriting them. Gemini streamed text and a completion event through the running NEXUS API after the server was restarted with network access and finished warming up. A preceding request timed out, so this confirms connectivity rather than sustained reliability.
+
+The current checkpoint passes 30 unit tests, including grouping thresholds and corrupt saved-collection handling. Unreadable project/calendar storage is preserved with editing disabled. Browser acceptance of grouping and presentation remains pending.
+
+TypeScript and 29 unit tests pass. Weather and News returned live data. Gemini accepted a minimal generation request; streamed generation later returned upstream 503, now handled with a bounded retry and a clear error. New UI additions still require final visual checks. Never interpret credential-gated adapters as verified account integrations.
 
 
 The latest source adds recessed facial features, larger eye particles, and short-viewport layout fixes. Sports standings are validated with a mocked provider response; live league access still requires FOOTBALL_DATA_TOKEN. The locally configured account credentials were checked by presence only: Gemini is configured; Finnhub, football-data and Instagram are still missing.
