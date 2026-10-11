@@ -1,6 +1,6 @@
 import type { AIRequest } from './server';
 import { validateCommand, type StreamEvent } from './protocol';
-export const aiProvider = () => process.env.AI_PROVIDER === 'gemini' ? 'gemini' : process.env.AI_PROVIDER === 'ollama' ? 'ollama' : process.env.GEMINI_API_KEY ? 'gemini' : 'ollama';
+export const aiProvider = () => process.env.AI_PROVIDER === 'grok' ? 'grok' : process.env.AI_PROVIDER === 'gemini' ? 'gemini' : process.env.AI_PROVIDER === 'ollama' ? 'ollama' : process.env.XAI_API_KEY ? 'grok' : process.env.GEMINI_API_KEY ? 'gemini' : 'ollama';
 export async function ollamaStatus() {
   try {
     const response = await fetch('http://127.0.0.1:11434/api/tags', { signal: AbortSignal.timeout(2500), cache: 'no-store' });

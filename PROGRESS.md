@@ -2,6 +2,12 @@
 
 This is a working implementation, not a declaration that all seven phases have passed acceptance.
 
+## Verification — 2026-10-12
+
+Merged `claude/project-thread-ynan24` into `codex/nexus-spatial-human`, preserving the keyboard disclosure fix. Added Grok streaming with server-only credentials, bounded SSE/tool parsing, explicit provider selection, and five provider tests. The combined 53-test suite passed, and the production build passed compilation and TypeScript validation after clearing stale generated desktop-route types. API checks passed for status, cross-origin rejection and malformed requests. A real xAI request rejected the supplied credential as an incorrect API key; live Grok generation is not verified.
+
+Browser checks passed for launcher search, System panel opening, return to orbit, grouping, human transformation completion and return to spatial mode. No browser errors were captured during these checks. The human screenshot still shows coarse/uneven bead coverage; this is functional verification, not visual acceptance. Physical hand tracking, microphone/voice, connected accounts and sustained GPU performance remain unverified. The preview now serves the combined production build at port 3001.
+
 | Phase | Implemented | Remaining acceptance work |
 | --- | --- | --- |
 | 1 | Spatial orbit, local hand tracking, fallback controls, motion gating, adaptive rendering, ambient audio | Physical webcam testing and sustained hardware performance measurement |

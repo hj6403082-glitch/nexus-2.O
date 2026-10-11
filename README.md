@@ -51,3 +51,7 @@ The HTTP check needs the server running on port 3001, or `NEXUS_TEST_URL`. It do
 Optional live AI verification: run `node scripts/check-ai-live.mjs` while NEXUS is running. This makes one real request through your configured model provider; provider usage charges can apply.
 
 If a key verifies but requests from the app fail immediately, check that the terminal running the server has outbound network access. A server launched in a restricted development sandbox can serve the local interface while being unable to contact cloud providers. Restart the server in a normal terminal, wait for its Ready message, and rerun the live check.
+
+## Grok provider
+
+Set `AI_PROVIDER=grok`, `XAI_API_KEY` and optionally `XAI_MODEL` in `.env.local`, then restart the server. The default model is `grok-4.7`. Obtain an API key from the xAI API console; keep it server-side and never commit it. NEXUS uses streaming chat completions with validated navigation and form tools. It does not enable web/X search. Gemini and local Ollama remain selectable with `AI_PROVIDER=gemini` or `AI_PROVIDER=ollama`; no automatic provider fallback sends your context elsewhere.

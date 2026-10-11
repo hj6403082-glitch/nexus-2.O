@@ -4,6 +4,7 @@ import { validateCommand, type StreamEvent } from '@/ai/protocol';
 import { modules } from '@/lib/modules';
 import { aiProvider, streamOllama } from '@/ai/ollama';
 import { withModelRetry } from '@/ai/retry';
+import { streamGrok } from '@/ai/grok';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 let active = 0;
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   try { input = validateRequest(await readBoundedJson(request)); } catch { return Response.json({ error: 'Invalid or oversized conversation.' }, { status: 400 }); }
   if (!input) return Response.json({ error: 'Invalid conversation or context.' }, { status: 400 });
   const provider = aiProvider();
+  if (provider === 'grok' && !process.env.XAI_API_KEY) return Response.json({ error: 'Grok is not connected. Add XAI_API_KEY to .env.local and restart NEXUS. Local module commands still work.' }, { status: 503 });
   if (provider === 'gemini' && !process.env.GEMINI_API_KEY) return Response.json({ error: 'Gemini is not connected. Add GEMINI_API_KEY to .env.local and restart NEXUS. Local module commands still work.' }, { status: 503 });
   if (active >= 2) return Response.json({ error: 'NEXUS is handling another request. Please try again shortly.' }, { status: 429 });
   active++;
@@ -27,6 +29,7 @@ export async function POST(request: Request) {
       const send = (event: StreamEvent) => { if (!abort.signal.aborted) controller.enqueue(encoder.encode(JSON.stringify(event) + '\n')); };
       try {
         if (provider === 'ollama') { for await (const event of streamOllama(input, abort.signal)) send(event); return; }
+        if (provider === 'grok') { for await (const event of streamGrok(input, abort.signal)) send(event); return; }
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
         const response = await withModelRetry(() => ai.models.generateContentStream({ model,
           contents: input.messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
         else send({ type: 'done' });
       } catch (error) {
         if (!abort.signal.aborted) {
-          if (provider === 'ollama') { send({ type: 'error', message: error instanceof Error ? error.message : 'The local model is unavailable.' }); return; }
+          if (provider === 'ollama' || provider === 'grok') { send({ type: 'error', message: error instanceof Error ? error.message : 'The model is unavailable.' }); return; }
           const status = Number((error as { status?: number })?.status);
           send({ type: 'error', message: status === 503 ? 'Gemini is temporarily overloaded. Your key is connected; please retry shortly or use the local Ollama option.' : status === 429 ? 'Gemini quota or rate limit reached. Check your Google AI billing and limits, then retry.' : status === 401 || status === 403 ? 'Gemini rejected the key. Check GEMINI_API_KEY and its API permissions.' : status === 404 ? 'The configured model is unavailable. Check GEMINI_MODEL in .env.local.' : 'Gemini could not finish this request. Check your connection and try again.' });
         } else if (!request.signal.aborted) {

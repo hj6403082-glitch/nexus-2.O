@@ -11,6 +11,6 @@ assert.equal(invalid.status, 400);
 if (!connection.configured) {
   const disconnected = await fetch(`${base}/api/ai`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: base }, body });
   if (connection.provider === 'ollama') { assert.equal(disconnected.status, 200); assert.match(await disconnected.text(), /"type":"error"/); }
-  else { assert.equal(disconnected.status, 503); assert.match((await disconnected.json()).error, /GEMINI_API_KEY/); }
+  else { assert.equal(disconnected.status, 503); assert.match((await disconnected.json()).error, connection.provider === 'grok' ? /XAI_API_KEY/ : /GEMINI_API_KEY/); }
 }
 console.log('Passed: status endpoint, cross-origin rejection, request validation, and disconnected-state recovery. No paid model call was made.');
