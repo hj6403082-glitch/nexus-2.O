@@ -16,7 +16,7 @@ Open http://127.0.0.1:3001/. For a production preview, run `npm run build` follo
 
 Copy `.env.example` to `.env.local` and choose a provider. Never commit `.env.local` or paste credentials into the assistant UI.
 
-- **Ollama:** `AI_PROVIDER=ollama`. Install Ollama and download a local model with chat/tool support. Set `OLLAMA_MODEL` to its name, or leave it blank to select the first installed local model. Requests stay on loopback; no API key is needed. Installation and model downloads are separate from this repository.
+- **Ollama (default):** Install Ollama, then run `ollama pull qwen3:1.7b`. Set `AI_PROVIDER=ollama` and `OLLAMA_MODEL=qwen3:1.7b` in `.env.local`, and restart NEXUS. Keep Ollama running while using AI. Requests stay on loopback; no API key is needed. The model download is approximately 1.4 GB and is separate from this repository. This compact model suits basic local assistance; response quality and speed differ from larger cloud models. You can select another installed chat/tool model with `OLLAMA_MODEL`.
 - **Gemini:** `AI_PROVIDER=gemini`, plus `GEMINI_API_KEY`. The default model is `gemini-3.8-flash`; override `GEMINI_MODEL` for your account. Requests include recent conversation and the displayed module context.
 
 Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation commands work without either provider. Conversation history is memory-only. Microphone and speech output are opt-in. Browser recognition may use its vendor's servers; native speech synthesis varies by OS and is not routed through spatial audio. Escape stops active AI input/output.

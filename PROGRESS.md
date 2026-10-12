@@ -4,6 +4,8 @@ This is a working implementation, not a declaration that all seven phases have p
 
 ## Verification — 2026-10-12
 
+Local AI setup completed: Ollama installed on Windows and `qwen3:1.7b` downloaded and checksum-verified. NEXUS restarted with `AI_PROVIDER=ollama`; `/api/ai/status` reports configured. API boundary checks and a real streamed request through `/api/ai` passed (text plus completion event). No cloud API key is needed for this provider. This verifies connectivity, not sustained response quality or rendering performance during longer inference. The repository setup now defaults to Ollama; local credentials remain ignored.
+
 Merged `claude/project-thread-ynan24` into `codex/nexus-spatial-human`, preserving the keyboard disclosure fix. Added Grok streaming with server-only credentials, bounded SSE/tool parsing, explicit provider selection, and five provider tests. The combined 53-test suite passed, and the production build passed compilation and TypeScript validation after clearing stale generated desktop-route types. API checks passed for status, cross-origin rejection and malformed requests. A real xAI request rejected the supplied credential as an incorrect API key; live Grok generation is not verified.
 
 Browser checks passed for launcher search, System panel opening, return to orbit, grouping, human transformation completion and return to spatial mode. No browser errors were captured during these checks. The human screenshot still shows coarse/uneven bead coverage; this is functional verification, not visual acceptance. Physical hand tracking, microphone/voice, connected accounts and sustained GPU performance remain unverified. The preview now serves the combined production build at port 3001.
