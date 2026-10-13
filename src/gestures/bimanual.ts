@@ -40,3 +40,34 @@ export class BimanualGroup {
   }
   reset() { this.baseline = 0; this.fired = false; }
 }
+
+// Two-handed spatial sculpting (Phase 8, Objective 2). Uses CLOSED/cupped hands
+// so it never collides with the open-hand gather (BimanualGroup) or the pinched
+// zoom (BimanualZoom):
+//   * Cup both hands and draw them INWARD  -> 'converge' (snap modules into a
+//     consolidated 3D data prism for cross-analysis).
+//   * Cup both hands and push them OUTWARD -> 'expand'   (scale the workspace
+//     out and unpack the focused card's inner sub-panels).
+// Edge-triggered: one event per decisive motion, re-armed when hands drop.
+export type SculptEvent = 'converge' | 'expand';
+export class BimanualSculpt {
+  private baseline = 0;
+  private fired = false;
+  update(hands: Point[][]): SculptEvent | null {
+    if (hands.length < 2 || hands.some(h => h.length < 21)) { this.reset(); return null; }
+    // Both hands cupped: fingertips curled back toward the wrist (closed), and
+    // the thumb not pinched out — a scooping posture.
+    const cupped = hands.slice(0, 2).every(h => {
+      const palm = distance(h[0], h[9]);
+      return palm > .02 && [8, 12, 16, 20].every(tip => distance(h[tip], h[0]) < palm * 1.3);
+    });
+    if (!cupped) { this.reset(); return null; }
+    const span = distance(hands[0][9], hands[1][9]);
+    if (!this.baseline) { this.baseline = span; return null; }
+    if (this.fired) return null;
+    if (span < this.baseline * .6) { this.fired = true; return 'converge'; }
+    if (span > this.baseline * 1.7) { this.fired = true; return 'expand'; }
+    return null;
+  }
+  reset() { this.baseline = 0; this.fired = false; }
+}

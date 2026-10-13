@@ -1,0 +1,14 @@
+{
+  "name": "nexus-windows-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hardened loopback daemon that lets NEXUS act as an autonomous Windows agent on the local machine.",
+  "main": "windowsBridge.js",
+  "scripts": {
+    "start": "node windowsBridge.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

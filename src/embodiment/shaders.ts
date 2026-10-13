@@ -1,8 +1,9 @@
 export const humanVertex = `
 attribute vec3 aSource; attribute vec3 aColor; attribute vec3 aNormal;
-attribute float aCard; attribute float aSeed;
+attribute float aCard; attribute float aSeed; attribute vec2 aCompute;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
-uniform vec2 uHead; uniform float uJaw;
+uniform vec2 uHead; uniform float uJaw; uniform float uFlare;
+uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uBands[8];
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -25,13 +26,25 @@ void main(){
    mat3 head=ry(uHead.x)*rx(uHead.y);target=pivot+head*(target-pivot);n=head*n;
  }
  target=target*1.7+vec3(0.,.02,3.0);
+ // GPGPU ferrofluid: sample this particle's simulated offset and add it, so the
+ // surface seethes like magnetic fluid in zero-g once the figure has formed.
+ vec3 disp=vec3(0.);
+ if(uComputeSize>0.) disp=texture2D(uDisplace,aCompute).xyz;
+ target+=disp*body*1.5;
+ // FFT band ripple: a band chosen by height makes the neck and jaw ripple with
+ // cymatic resonance rather than a stiff hinge. Constant loop index keeps this
+ // portable (no dynamic uniform-array indexing).
+ float region=clamp((position.y+1.2)/2.4,0.,1.);
+ float bandIdx=region*7.0; float band=0.;
+ for(int i=0;i<8;i++){if(abs(float(i)-bandIdx)<.5)band=uBands[i];}
+ target+=aNormal*band*0.11*body*smoothRange(.0,.55,region);
  p=mix(p,target,body);
  p+=normalize(target-core+vec3(.0001))*sin(body*3.14159265)*.7;
  vec3 key=normalize(vec3(-.55,.7,1.));float facing=clamp(dot(normalize(n),key),0.,1.);
  vec3 blue=mix(vec3(.035,.12,.24),vec3(.32,.67,.88),pow(facing,.85));
  blue+=vec3(.04,.09,.13)*pow(clamp(facing,0.,1.),16.);
  float eye=step(.5,aSeed-1.); // last two particles have an explicit eye flag
- if(eye>.5)blue=mix(blue,vec3(.7,.88,1.),smoothRange(6.9,7.8,uTime));
+ if(eye>.5)blue=mix(blue,vec3(.7,.88,1.)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime));
  float seam=step(abs(position.y-.49),.009)*step(abs(position.x),.12)*step(.25,position.z);
  blue+=seam*uJaw*vec3(.12,.26,.32);
  vColor=mix(aColor,blue,body);

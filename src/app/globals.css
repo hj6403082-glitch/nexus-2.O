@@ -147,3 +147,33 @@ button:disabled { cursor: wait; }
 @media (max-width: 480px) { .project-world-banner { top: 150px; gap: 10px; padding: 7px 8px 7px 13px; }.project-world-banner strong { max-width: 32vw; } }
 .nexus.in-project .workspace-heading, .nexus.in-project .form-switcher, .nexus.in-project .orbit-label { opacity: 0; pointer-events: none; transition: opacity .5s ease; }
 .group-controls { position:relative; font-size:11px; }.group-controls summary { cursor:pointer; white-space:nowrap; padding:7px; border:1px solid #8ba7c12c; border-radius:6px; }.group-menu { position:absolute; bottom:40px; right:0; width:min(310px,85vw); padding:18px; background:#0b1724fa; border:1px solid #8ba7c145; border-radius:10px; box-shadow:0 12px 45px #0008; }.group-menu p { line-height:1.6; color:#91a8b9; }.group-options { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }.group-menu label { display:flex; gap:8px; align-items:center; }.group-menu button { margin-top:12px; padding:10px; border:1px solid #8ba7c145; border-radius:6px; }.group-menu button:disabled { opacity:.4; cursor:default; }.group-menu input { accent-color:#90c6e7; } @media(max-width:480px) { .world-controls { gap:5px; width:calc(100% - 24px); justify-content:center; }.world-controls select { max-width:125px; }.group-controls summary { font-size:10px; }.group-menu { right:0; } }
+
+/* Phase 8 — Windows bridge controls (System panel). */
+.bridge-controls h3 { display:flex; align-items:center; gap:8px; }
+.bridge-connect { display:grid; gap:10px; margin-top:12px; }
+.bridge-connect label { display:grid; gap:4px; font-size:11px; color:#9db4c5; letter-spacing:.04em; }
+.bridge-connect input { padding:9px 11px; background:#0b1724; border:1px solid #8ba7c145; border-radius:7px; color:#e6eff8; font-size:13px; font-family:inherit; }
+.bridge-connect input:focus { outline:none; border-color:#90c6e7; }
+.bridge-live { margin-top:12px; display:grid; gap:12px; }
+.bridge-status { display:flex; align-items:center; gap:8px; font-size:12px; color:#bfe0cf; }
+.bridge-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.bridge-actions .text-button { font-size:12px; }
+.bridge-screen { border-left:2px solid #9fcff066; padding-left:12px; }
+.bridge-screen .bridge-title { font-size:14px; color:#eaf3fb; margin:4px 0; overflow-wrap:anywhere; }
+.bridge-tree { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:4px; font-size:11px; color:#9db4c5; }
+.bridge-tree li b { color:#b9d6ef; font-weight:500; }
+.bridge-error { color:#f0a9a9; font-size:12px; margin-top:8px; }
+
+/* Phase 8 — depth-expansion sub-panels. */
+.unpacked-subpanels { margin:16px 0 4px; }
+.unpacked-subpanels .eyebrow { font-size:9px; letter-spacing:.2em; color:#9fcff0; }
+.subpanel-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+.subpanel { padding:12px; background:#0c1a28cc; border:1px solid #8ba7c12c; border-radius:9px; }
+.subpanel b { display:block; font-size:13px; color:#e6eff8; font-weight:500; }
+.subpanel span { font-size:11px; }
+
+/* Phase 8 — human-mode action row. */
+.human-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+
+/* Phase 8 — flung cards show a hollow outer-orbit dot. */
+.orbit-pagination button[data-flung='true'] span { background:transparent; border:1px solid #9fcff0aa; box-shadow:0 0 8px #9fcff055; }

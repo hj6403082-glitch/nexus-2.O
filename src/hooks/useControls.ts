@@ -15,6 +15,9 @@ export function useControls() {
       if (e.key.toLowerCase() === 'h') useNexus.setState({ hud: !state.hud });
       if (e.key === '?') useNexus.setState({ help: !state.help });
       if (e.key.toLowerCase() === 'g' && !state.expanded) state.setGrouped(!state.grouped);
+      if (e.key.toLowerCase() === 'p' && !state.expanded) state.converge();   // data prism
+      if (e.key.toLowerCase() === 'e' && !state.expanded) state.expand();     // depth expansion
+      if (e.key.toLowerCase() === 'r' && state.flung.length) state.recall();  // recall flung cards
     };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, []);

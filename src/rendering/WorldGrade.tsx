@@ -5,6 +5,7 @@ import { Uniform, Vector3 } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useWorld, worlds, type WorldGrade as Grade } from '@/stores/world';
 import { useProject } from '@/stores/project';
+import { thermalShift, thermalSignal } from './environment';
 // Full-screen filmic grade. Violet goes into the shadows, warm white into the
 // highlights, the mid-tones are untouched, contrast pivots at 18% grey, and a
 // halation term bleeds warmth out of the brightest pixels. Each world supplies
@@ -36,9 +37,12 @@ export function WorldGrade() {
     const project = useProject.getState().world;
     const grade = (project ? project.grade : worlds[useWorld.getState().index].grade) as Grade;
     const ease = 1 - Math.exp(-dt * 3);
-    for (const key of keys) { const u = effect.uniforms.get(key)!; u.value += (grade[key] - u.value) * ease; }
-    (effect.uniforms.get('shadowTint')!.value as Vector3).lerp(new Vector3(...grade.shadow), ease);
-    (effect.uniforms.get('highlightTint')!.value as Vector3).lerp(new Vector3(...grade.highlight), ease);
+    // System-load thermal LUT: the Windows bridge's task load blends the grade
+    // from cobalt toward violet/cyan. Added on top of the world's own ramp.
+    const t = thermalShift(thermalSignal.load);
+    for (const key of keys) { const u = effect.uniforms.get(key)!; const bias = key === 'warmth' ? t.warmth : key === 'contrast' ? t.contrast : 0; u.value += (grade[key] + bias - u.value) * ease; }
+    (effect.uniforms.get('shadowTint')!.value as Vector3).lerp(new Vector3(grade.shadow[0] + t.shadow[0], grade.shadow[1] + t.shadow[1], grade.shadow[2] + t.shadow[2]), ease);
+    (effect.uniforms.get('highlightTint')!.value as Vector3).lerp(new Vector3(grade.highlight[0] + t.highlight[0], grade.highlight[1] + t.highlight[1], grade.highlight[2] + t.highlight[2]), ease);
   });
   return <primitive object={effect} dispose={null} />;
 }

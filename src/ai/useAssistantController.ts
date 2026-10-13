@@ -6,10 +6,11 @@ import { useKnowledge } from '@/stores/knowledge';
 import { moduleById } from '@/lib/modules';
 import { EventDecoder, matchCommand, type StreamEvent, type Turn } from './protocol';
 import { executeCommand } from './commands';
-import { recognitionConstructor, SentenceSpeaker, type Recognition } from './speech';
+import { recognitionConstructor, type Recognition } from './speech';
+import { CinematicSpeaker } from './voice';
 export function useAssistantController() {
   const request = useRef<AbortController | null>(null), generation = useRef(0);
-  const speaker = useRef<SentenceSpeaker | null>(null), recognition = useRef<Recognition | null>(null);
+  const speaker = useRef<CinematicSpeaker | null>(null), recognition = useRef<Recognition | null>(null);
   const listening = useRef(false), armedUntil = useRef(0), restart = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null), generating = useRef(false);
   const refresh = useCallback(async () => {
@@ -116,7 +117,7 @@ export function useAssistantController() {
     catch { stopMicrophone(); useAssistant.setState({ error: 'The microphone could not start. Try again from the microphone button.' }); }
   }, [interrupt, stopMicrophone]);
   useEffect(() => {
-    speaker.current = new SentenceSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI);
+    speaker.current = new CinematicSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI);
     void refresh();
     const unsubscribe = useAssistant.subscribe((s, previous) => {
       if (s.wakeAt !== previous.wakeAt) { armedUntil.current = Date.now() + 30000; if (s.microphone && !generating.current && !speaker.current?.speaking) useAssistant.setState({ status: 'Listening' }); }
