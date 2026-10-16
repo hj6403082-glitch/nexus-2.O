@@ -21,13 +21,27 @@ export function HumanForm() {
   const material = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uBands: { value: new Float32Array(8) }, uFlare: { value: .55 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uBands: { value: new Float32Array(8) }, uFlare: { value: .55 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 }, uPoke: { value: new THREE.Vector4(0, 0, 0, -1) } });
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
     window.addEventListener('pointermove', move);
     return () => { mounted.current = false; window.removeEventListener('pointermove', move); };
   }, []);
+  // Touch: tapping the formed figure sends a ripple out from the touch point.
+  // The tap ray meets a plane through the face/chest, close enough to the
+  // particle surface for the ring to start where the finger landed.
+  useEffect(() => {
+    const canvas = gl.domElement, ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -3.4), hit = new THREE.Vector3();
+    const down = (e: PointerEvent) => {
+      if (useForm.getState().phase !== 'HUMANOID_ACTIVE') return;
+      const box = canvas.getBoundingClientRect();
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - box.left) / box.width) * 2 - 1, -((e.clientY - box.top) / box.height) * 2 + 1), camera);
+      if (ray.ray.intersectPlane(plane, hit)) uniforms.current.uPoke.value.set(hit.x, hit.y, hit.z, 0);
+    };
+    canvas.addEventListener('pointerdown', down);
+    return () => canvas.removeEventListener('pointerdown', down);
+  }, [gl, camera]);
   useEffect(() => () => geometry?.dispose(), [geometry]);
   useEffect(() => () => { ferro.current?.dispose(); ferro.current = null; }, []);
   useEffect(() => {
@@ -89,6 +103,9 @@ export function HumanForm() {
       material.current.uniforms.uJaw.value = Math.max(voiceSignal.level, fftSignal.bands[0] * .8);
       for (let i = 0; i < 8; i++) material.current.uniforms.uBands.value[i] = fftSignal.bands[i];
       material.current.uniforms.uFlare.value = gazeSignal.active ? 1 : .55;
+      const poke = material.current.uniforms.uPoke.value as THREE.Vector4;
+      // Capped step so a frame hitch can't skip the whole ripple.
+      if (poke.w >= 0) poke.w = poke.w > 3 ? -1 : poke.w + Math.min(delta, 1 / 30);
       // Advance the ferrofluid GPGPU simulation and hand its texture to the shader.
       if (ferro.current) {
         ferro.current.step(delta, Math.max(voiceSignal.level, fftSignal.level), e.presence > 0.1);

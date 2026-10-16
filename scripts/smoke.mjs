@@ -23,8 +23,11 @@ await page.getByRole('dialog', { name: 'UNDER THE SURFACE / SYSTEM' }).waitFor()
 assert.match(await page.getByRole('dialog', { name: 'UNDER THE SURFACE / SYSTEM' }).innerText(), /Render rate/);
 await page.screenshot({ path: 'test-results/system.png' });
 await page.keyboard.press('Escape');
+// The launcher input keeps focus during its exit animation; wait it out so 'h' reaches the HUD.
+await page.getByRole('textbox', { name: 'Find a module' }).waitFor({ state: 'detached' });
+await page.getByRole('dialog').waitFor({ state: 'detached' });
 await page.keyboard.press('h');
-assert.equal(await page.getByRole('heading', { name: 'Make space.' }).count(), 0);
+await page.getByRole('heading', { name: 'Make space.' }).waitFor({ state: 'detached' });
 await page.keyboard.press('Control+k');
 await page.getByRole('textbox', { name: 'Find a module' }).waitFor();
 await page.keyboard.press('Escape');
@@ -33,8 +36,8 @@ await page.getByRole('button', { name: 'CONTROLS', exact: true }).click();
 assert.match(await page.getByRole('dialog').innerText(), /Pinch & release/);
 await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Enable hand tracking', exact: false }).click();
-await page.getByRole('alert').waitFor({ timeout: 20000 });
-assert.match(await page.getByRole('alert').innerText(), /camera/i);
+await page.getByRole('alert').filter({ hasText: /camera/i }).waitFor({ timeout: 20000 });
+assert.match(await page.getByRole('alert').filter({ hasText: /camera/i }).innerText(), /camera/i);
 await page.getByRole('button', { name: 'Dismiss camera error' }).click();
 await page.setViewportSize({ width: 390, height: 844 });
 await page.getByRole('button', { name: 'Select Projects', exact: true }).last().click();
