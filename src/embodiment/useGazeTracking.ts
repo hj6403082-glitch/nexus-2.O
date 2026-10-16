@@ -1,14 +1,17 @@
 'use client';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { FaceLandmarker } from '@mediapipe/tasks-vision';
-import { gazeSignal, estimateGaze } from './gaze';
-import { useForm } from '@/stores/form';
+import { gazeSignal, estimateGaze, gazeTarget } from './gaze';
+import { useForm, type GazeStatus } from '@/stores/form';
+
+const setStatus = (gaze: GazeStatus) => { if (useForm.getState().gaze !== gaze) useForm.setState({ gaze }); };
 
 // Drives the webcam gaze signal with MediaPipe FaceLandmarker so the humanoid
 // keeps eye contact (Phase 8, Objective 3). Opt-in: nothing starts until
 // `start()` is called (the Human-mode UI offers it), and the camera stops on
 // return to spatial mode, tab hide, or `stop()`. Frames are processed locally
-// with the bundled MediaPipe runtime; nothing is uploaded or recorded.
+// with the bundled MediaPipe runtime; nothing is uploaded or recorded. The
+// lifecycle is published as `useForm().gaze` so the UI never shows a stale state.
 export function useGazeTracking() {
   const res = useRef<{ stream?: MediaStream; video?: HTMLVideoElement; detector?: FaceLandmarker; frame: number; gen: number }>({ frame: 0, gen: 0 });
   const stop = useCallback(() => {
@@ -17,9 +20,11 @@ export function useGazeTracking() {
     r.detector?.close(); if (r.video) { r.video.pause(); r.video.srcObject = null; }
     r.stream = undefined; r.detector = undefined; r.video = undefined;
     gazeSignal.active = false; gazeSignal.confidence = 0;
+    setStatus('off');
   }, []);
   const start = useCallback(async () => {
     stop(); const r = res.current; const gen = r.gen;
+    setStatus('starting');
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Webcam gaze needs a camera and a secure (localhost/HTTPS) context.');
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
@@ -35,7 +40,7 @@ export function useGazeTracking() {
         runningMode: 'VIDEO', numFaces: 1, minFaceDetectionConfidence: .5, minTrackingConfidence: .5,
       });
       if (gen !== r.gen) { detector.close(); return; }
-      r.detector = detector;
+      r.detector = detector; setStatus('searching');
       let lastTime = -1, lastFrame = 0;
       const tick = (now: number) => {
         if (gen !== r.gen) return;
@@ -46,11 +51,12 @@ export function useGazeTracking() {
             const face = result.faceLandmarks?.[0];
             const g = face ? estimateGaze(face) : null;
             if (g) {
-              // The webcam is mirrored (selfie), so flip yaw to feel natural.
-              gazeSignal.yaw += (-g.yaw - gazeSignal.yaw) * .3;
-              gazeSignal.pitch += (g.pitch - gazeSignal.pitch) * .3;
+              const t = gazeTarget(g);
+              gazeSignal.yaw += (t.yaw - gazeSignal.yaw) * .3;
+              gazeSignal.pitch += (t.pitch - gazeSignal.pitch) * .3;
               gazeSignal.active = true; gazeSignal.confidence = 1;
             } else { gazeSignal.active = false; gazeSignal.confidence = 0; }
+            setStatus(gazeSignal.active ? 'tracking' : 'searching');
           } catch { /* skip a bad frame */ }
         }
         r.frame = requestAnimationFrame(tick);
@@ -66,5 +72,5 @@ export function useGazeTracking() {
     document.addEventListener('visibilitychange', onVisibility);
     return () => { document.removeEventListener('visibilitychange', onVisibility); stop(); };
   }, [stop]);
-  return { start, stop };
+  return useMemo(() => ({ start, stop }), [start, stop]);
 }

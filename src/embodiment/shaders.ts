@@ -4,6 +4,7 @@ attribute float aCard; attribute float aSeed; attribute vec2 aCompute;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
 uniform vec2 uHead; uniform float uJaw; uniform float uFlare;
 uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uBands[8];
+uniform vec4 uPoke; // xyz: world-space touch point, w: seconds since the touch (<0 = none)
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -38,6 +39,11 @@ void main(){
  float bandIdx=region*7.0; float band=0.;
  for(int i=0;i<8;i++){if(abs(float(i)-bandIdx)<.5)band=uBands[i];}
  target+=aNormal*band*0.11*body*smoothRange(.0,.55,region);
+ // Touch ripple: a ring of swelling particles expands from where the user
+ // tapped the figure and fades out, so the body visibly reacts to a touch.
+ float poke=0.;
+ if(uPoke.w>=0.){float pd=distance(target,uPoke.xyz);poke=exp(-pow((pd-uPoke.w*.8)*6.,2.))*exp(-uPoke.w*1.1)*body;}
+ target+=aNormal*poke*.14;
  p=mix(p,target,body);
  p+=normalize(target-core+vec3(.0001))*sin(body*3.14159265)*.7;
  vec3 key=normalize(vec3(-.55,.7,1.));float facing=clamp(dot(normalize(n),key),0.,1.);
@@ -45,6 +51,7 @@ void main(){
  blue+=vec3(.04,.09,.13)*pow(clamp(facing,0.,1.),16.);
  float eye=step(.5,aSeed-1.); // last two particles have an explicit eye flag
  if(eye>.5)blue=mix(blue,vec3(.7,.88,1.)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime));
+ blue+=poke*vec3(.45,.75,.95);
  float seam=step(abs(position.y-.49),.009)*step(abs(position.x),.12)*step(.25,position.z);
  blue+=seam*uJaw*vec3(.12,.26,.32);
  vColor=mix(aColor,blue,body);

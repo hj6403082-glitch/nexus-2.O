@@ -3,7 +3,12 @@ const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() =>
 const vertex = `varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
 const fragment = `precision highp float;
 varying vec2 vUv; uniform float uMode;
-float hash(float n){return fract(sin(n)*43758.5453);}
+// Integer PCG hash: exact on every WebGL2 GPU. The old fract(sin(n)*43758.)
+// hash collapsed to ~7.6k distinct values for 65k ids on drivers with coarse
+// sin() range reduction (SwiftShader, some iGPUs), so the bake never found
+// enough distinct surface points and Human mode failed after minutes.
+uint pcg(uint v){uint s=v*747796405u+2891336453u;uint w=((s>>((s>>28u)+4u))^s)*277803737u;return (w>>22u)^w;}
+float hash(float n){return float(pcg(uint(n))>>8u)/16777216.;}
 float ell(vec3 p,vec3 r){float k0=length(p/r),k1=length(p/(r*r));return k0*(k0-1.)/max(k1,.0001);}
 float sm(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
 float field(vec3 p){
