@@ -8,7 +8,7 @@ export class SentenceSpeaker {
   private pulseAt = 0;
   private startedAt = 0;
   private hadBoundary = false;
-  constructor(private onSpeaking: (speaking: boolean) => void, private voiceURI: () => string) {}
+  constructor(private onSpeaking: (speaking: boolean) => void, private voiceURI: () => string, private style: () => 'ultron' | 'natural' = () => 'natural') {}
   get speaking() { return this.current !== null || this.queue.length > 0; }
   feed(text: string, final = false) {
     if (typeof speechSynthesis === 'undefined') return;
@@ -28,8 +28,13 @@ export class SentenceSpeaker {
     if (!text) { this.playNext(); return; }
     const u = new SpeechSynthesisUtterance(text); const epoch = this.epoch;
     const voices = speechSynthesis.getVoices();
-    u.voice = voices.find(v => v.voiceURI === this.voiceURI()) ?? voices.find(v => /natural|neural|enhanced/i.test(v.name) && /^en/i.test(v.lang)) ?? voices.find(v => v.default && /^en/i.test(v.lang)) ?? voices.find(v => /^en/i.test(v.lang)) ?? null;
-    u.rate = 1.02; u.pitch = 1; u.volume = .85;
+    // Prefer a deep male neural voice (Edge's "Online (Natural)" voices sound
+    // human), then any natural/neural English voice, then the default.
+    const english = voices.filter(v => /^en/i.test(v.lang)), natural = english.filter(v => /natural|neural|enhanced|premium/i.test(v.name));
+    const deep = /\b(guy|christopher|andrew|brian|davis|eric|roger|ryan|thomas|steffan|william|george|daniel|david|mark)\b/i;
+    u.voice = voices.find(v => v.voiceURI === this.voiceURI()) ?? natural.find(v => deep.test(v.name)) ?? natural[0] ?? english.find(v => deep.test(v.name)) ?? english.find(v => v.default) ?? english[0] ?? null;
+    const ultron = this.style() === 'ultron';
+    u.rate = ultron ? .94 : 1.02; u.pitch = ultron ? .72 : 1; u.volume = .9;
     this.current = u; this.startedAt = performance.now(); this.hadBoundary = false;
     u.onstart = () => {
       if (epoch !== this.epoch) return;

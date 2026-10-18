@@ -3,7 +3,7 @@ attribute vec3 aSource; attribute vec3 aColor; attribute vec3 aNormal;
 attribute float aCard; attribute float aSeed; attribute vec2 aCompute;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
 uniform vec2 uHead; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
-uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uBands[8];
+uniform sampler2D uDisplace; uniform float uComputeSize;
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -24,7 +24,11 @@ void main(){
  if(target.y<-.15){float breath=1.+sin(uClock*1.25)*.014*presence;target.xz*=breath;target.y+=sin(uClock*1.25)*.008*presence;}
  if(target.y>.26){
    vec3 pivot=vec3(0.,.43,0.);
-   if(target.y<.50&&target.z>.08&&abs(target.x)<.25){target=vec3(0.,.54,0.)+rx(uJaw*.16)*(target-vec3(0.,.54,0.));n=rx(uJaw*.16)*n;}
+   // Speech moves the mouth only: the jaw and lower lip hinge open with a soft
+   // falloff (no seam), the upper lip lifts slightly.
+   float jaw=(1.-smoothRange(.47,.497,target.y))*smoothRange(.30,.37,target.y)*(1.-smoothRange(.15,.25,abs(target.x)))*smoothRange(0.,.14,target.z);
+   if(jaw>0.){mat3 open=rx(uJaw*.2*jaw);target=vec3(0.,.56,0.)+open*(target-vec3(0.,.56,0.));n=open*n;}
+   target.y+=uJaw*.012*smoothRange(.495,.505,target.y)*(1.-smoothRange(.53,.56,target.y))*(1.-smoothRange(.08,.12,abs(target.x)))*step(.25,target.z);
    mat3 head=ry(uHead.x)*rx(uHead.y);target=pivot+head*(target-pivot);n=head*n;
  }
  target=target*1.7+vec3(0.,.02,3.0);
@@ -33,13 +37,7 @@ void main(){
  vec3 disp=vec3(0.);
  if(uComputeSize>0.) disp=texture2D(uDisplace,aCompute).xyz;
  target+=disp*body*1.5;
- // FFT band ripple: a band chosen by height makes the neck and jaw ripple with
- // cymatic resonance rather than a stiff hinge. Constant loop index keeps this
- // portable (no dynamic uniform-array indexing).
- float region=clamp((position.y+1.2)/2.4,0.,1.);
- float bandIdx=region*7.0; float band=0.;
- for(int i=0;i<8;i++){if(abs(float(i)-bandIdx)<.5)band=uBands[i];}
- target+=aNormal*band*0.11*body*smoothRange(.0,.55,region);
+
  // Returning, the figure does not rewind into the core: it disintegrates into
  // an expanding cloud of motes that streams back to the interface.
  vec3 away=normalize(target-vec3(0.,.1,3.)+vec3(.0001));
@@ -69,7 +67,7 @@ void main(){
  float eye=step(.5,aSeed-1.); // last two particles have an explicit eye flag
  float blink=1.-step(.965,fract(uClock/4.7+.3))*presence;
  if(eye>.5)blue=mix(blue,vec3(.7,.88,1.)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime)*blink);
- float seam=step(abs(position.y-.49),.009)*step(abs(position.x),.12)*step(.25,position.z);
+ float seam=step(abs(position.y-.489),.012)*step(abs(position.x),.1)*step(.25,position.z);
  blue+=seam*uJaw*vec3(.12,.26,.32);
  // A holographic scan line travels up the body while it is present.
  blue+=vec3(.12,.28,.38)*pow(.5+.5*sin(position.y*7.-uClock*2.2),36.)*presence;

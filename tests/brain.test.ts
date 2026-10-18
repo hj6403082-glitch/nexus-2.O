@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ollamaStatus, pullOllama, resolveModel, streamOllama, ThinkFilter, validModelName } from '../src/ai/ollama';
+import { ollamaStatus, pullOllama, resetOllamaCache, trimHistory, resolveModel, streamOllama, ThinkFilter, validModelName } from '../src/ai/ollama';
 import { EventDecoder } from '../src/ai/protocol';
 
 const input = { messages: [{ role: 'user' as const, text: 'Hello' }], context: { module: 'orbit', description: '', connected: false } };
@@ -8,6 +8,7 @@ const lines = (...items: unknown[]) => new Response(items.map(i => typeof i === 
 async function withOllama(handler: (url: string, body: Record<string, unknown> | null) => Response | Promise<Response>, run: () => Promise<void>, model: string | undefined = 'test:local') {
   const original = globalThis.fetch, previous = process.env.OLLAMA_MODEL;
   if (model === undefined) delete process.env.OLLAMA_MODEL; else process.env.OLLAMA_MODEL = model;
+  resetOllamaCache();
   globalThis.fetch = async (url, init) => handler(String(url), init?.body ? JSON.parse(String(init.body)) : null);
   try { await run(); } finally { globalThis.fetch = original; if (previous === undefined) delete process.env.OLLAMA_MODEL; else process.env.OLLAMA_MODEL = previous; }
 }
@@ -71,4 +72,20 @@ test('a garbled browser stream line is reported plainly', () => {
   const decoder = new EventDecoder();
   assert.throws(() => decoder.push(new TextEncoder().encode('<html>\n')), /garbled/);
   assert.throws(() => new EventDecoder().push(new TextEncoder().encode('null\n')), /Unrecognized/);
+});
+test('only recent turns are sent to the local model, starting with the user', () => {
+  const many = Array.from({ length: 20 }, (_, i) => ({ role: (i % 2 ? 'assistant' : 'user') as 'user' | 'assistant', text: `m${i}` }));
+  const out = trimHistory(many); assert.ok(out.length <= 10); assert.equal(out[0].role, 'user'); assert.equal(out.at(-1)?.text, 'm19');
+  assert.equal(trimHistory([{ role: 'user', text: 'x'.repeat(9000) }]).length, 1);
+});
+test('the system prompt is identical across turns so Ollama can reuse its cache', async () => {
+  const systems: string[] = [];
+  await withOllama((url, body) => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'test:local' }] });
+    systems.push((body!.messages as { content: string }[])[0].content); assert.equal(body!.keep_alive, '30m');
+    return lines({ message: { content: 'ok' }, done: true });
+  }, async () => {
+    for (const module of ['orbit', 'system']) for await (const _ of streamOllama({ ...input, context: { module, description: module, connected: false } }, new AbortController().signal)) void _;
+  });
+  assert.equal(systems.length, 2); assert.equal(systems[0], systems[1]);
 });

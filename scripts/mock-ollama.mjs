@@ -24,7 +24,7 @@ http.createServer(async (req, res) => {
     if (!models.has(body.model)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: `model "${body.model}" not found, try pulling it first` })); return; }
     if (body.tools && !tools) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: `${body.model} does not support tools` })); return; }
     res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
-    const last = body.messages?.at(-1)?.content || '';
+    const last = (body.messages?.at(-1)?.content || '').replace(/^\[Displayed context[^\n]*\n\n/, '');
     const send = message => res.write(JSON.stringify({ model: body.model, message: { role: 'assistant', content: '', ...message }, done: false }) + '\n');
     if (/become human|human form/i.test(last) && body.tools) send({ tool_calls: [{ function: { name: 'transform_form', arguments: { form: 'human' } } }] });
     const words = `<think>internal reasoning that must never be shown</think>Stand-in brain online. You said: "${last.slice(0, 80)}". Real answers need a real local model.`.match(/.{1,7}/gs);

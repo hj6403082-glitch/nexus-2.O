@@ -28,8 +28,8 @@ export function HumanForm() {
   const material = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
-  const dispersal = useRef({ value: 0, velocity: 0 });
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uBands: { value: new Float32Array(8) }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
+  const dispersal = useRef({ value: 0, velocity: 0 }), jaw = useRef({ value: 0, velocity: 0 });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
@@ -58,7 +58,7 @@ export function HumanForm() {
         g.setAttribute('aColor', new THREE.BufferAttribute(captured.colors, 3));
         g.setAttribute('aCard', new THREE.BufferAttribute(captured.cards, 1));
         // Eye lights are part of this buffer, not a separately animated mesh.
-        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.116 : .116, .74, .37], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
+        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.115 : .115, .752, .3], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
         g.setAttribute('aSeed', new THREE.BufferAttribute(captured.seeds, 1));
         uniforms.current.uSize.value = count > 10000 ? .019 : .024;
         // GPGPU ferrofluid: a square displacement field, one texel per particle.
@@ -104,13 +104,16 @@ export function HumanForm() {
       const pitch = stepSpring(headY.current, targetY, delta, 45, 15);
       material.current.uniforms.uHead.value.set(yaw, pitch);
       // Speaking jaw from the voice envelope; low FFT band adds cymatic ripple.
-      material.current.uniforms.uJaw.value = Math.max(voiceSignal.level, fftSignal.bands[0] * .8);
-      for (let i = 0; i < 8; i++) material.current.uniforms.uBands.value[i] = fftSignal.bands[i];
+      // The mouth follows the voice envelope through a quick spring so syllables
+      // open and close it naturally instead of snapping.
+      const speech = Math.min(1, Math.max(voiceSignal.level, fftSignal.bands[0] * 1.1));
+      material.current.uniforms.uJaw.value = THREE.MathUtils.clamp(stepSpring(jaw.current, speech, Math.min(delta, .05), 420, 30), 0, 1);
       material.current.uniforms.uFlare.value = gazeSignal.active ? 1 : .55;
       // Advance the ferrofluid GPGPU simulation and hand its texture to the shader.
       if (ferro.current) {
-        // A low idle energy keeps the surface alive; the ignition surge ripples it.
-        ferro.current.step(delta, Math.max(voiceSignal.level, fftSignal.level, .06 * e.presence + e.ignite * .5), e.presence > 0.1 || e.ignite > .05);
+        // A low idle energy keeps the surface alive and the ignition surge ripples
+        // it; speech no longer shakes the body (only the mouth moves).
+        ferro.current.step(delta, .05 * e.presence + e.ignite * .5, e.presence > 0.1 || e.ignite > .05);
         material.current.uniforms.uDisplace.value = ferro.current.texture;
       }
     }

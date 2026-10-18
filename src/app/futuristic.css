@@ -28,7 +28,8 @@ html[data-app='standalone'] input, html[data-app='standalone'] textarea, html[da
 .hud-frame i:nth-child(4) { bottom: 14px; right: 14px; border-bottom-width: 1px; border-right-width: 1px; }
 .system-stats, .system-log { transform: translate3d(calc(var(--px) * -6px), calc(var(--py) * -4px), 0); }
 .gesture-status { transform: translate3d(calc(var(--px) * -6px), calc(var(--py) * -4px), 0); }
-.workspace-heading { transform: translate3d(calc(-50% + var(--px) * 10px), calc(var(--py) * 6px), 0); }
+.workspace-heading { transition: opacity .6s ease, filter .6s ease; transform: translate3d(calc(-50% + var(--px) * 10px), calc(var(--py) * 6px), 0); }
+.ai-live .workspace-heading { opacity: .12; filter: blur(2px); }
 .workspace-heading h1 { background: linear-gradient(100deg, #e8f2f8 20%, #bfe6ff 45%, #e8f2f8 60%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: title-sheen 7s ease-in-out infinite; }
 .top-center i, .status-led { animation: led 2.4s ease-in-out infinite; }
 .brand-mark { text-shadow: 0 0 18px #8fd3ff55; }
@@ -128,3 +129,8 @@ html[data-app='standalone'] input, html[data-app='standalone'] textarea, html[da
 
 @media (max-width: 800px) { .hud-frame, .ambience-scan { display: none; } .boot-word { font-size: 34px; } }
 @media (prefers-reduced-motion: reduce) { .ambience-grid, .ambience-scan, .install-button::after, .control-dock::before, .workspace-heading h1, .fx-grain { animation: none !important; } .boot { display: none; } }
+
+/* ---------- Round 2: voice status ---------- */
+.neural-status { font: 10px/1.5 Consolas, monospace; letter-spacing: .06em; color: #8fb5cf; margin: 10px 0 0; }
+.neural-status[data-state='ready'] { color: #8fe3c0; }
+.neural-status[data-state='failed'] { color: #e0b98e; }

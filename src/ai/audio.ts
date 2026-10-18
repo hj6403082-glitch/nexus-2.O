@@ -36,8 +36,64 @@ export interface VoiceGraph {
   dispose(): void;
 }
 
-export function createVoiceGraph(context: AudioContext): VoiceGraph {
+// Voice characters. "ultron" is an original synthetic-menace treatment in the
+// spirit of a film AI antagonist: a calm, deep human performance (the source is
+// slowed slightly, which also lowers its pitch) layered with a detuned digital
+// double, a faint ring-modulated metallic edge, a short comb resonance and soft
+// saturation. It processes NEXUS's own neural voice; it does not imitate any
+// real actor's voice. "natural" leaves the human voice clean.
+export type VoiceStyle = 'ultron' | 'natural';
+export const VOICE_STYLES: Record<VoiceStyle, { label: string; playbackRate: number; speed: number }> = {
+  ultron: { label: 'Ultron-style synthetic', playbackRate: .9, speed: 1.08 },
+  natural: { label: 'Natural human', playbackRate: 1, speed: 1 },
+};
+function softClip(amount: number) {
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < curve.length; i++) { const x = i / (curve.length - 1) * 2 - 1; curve[i] = Math.tanh(x * amount) / Math.tanh(amount); }
+  return curve;
+}
+// Builds the character layer between `input` and `output`; returns its nodes so
+// they can be disconnected.
+function characterChain(context: AudioContext, input: AudioNode, output: AudioNode, style: VoiceStyle): AudioNode[] {
+  if (style === 'natural') { input.connect(output); return []; }
+  const nodes: AudioNode[] = [];
+  const add = <T extends AudioNode>(node: T) => { nodes.push(node); return node; };
+  const sum = add(context.createGain()); sum.gain.value = 1;
+  // Dry voice.
+  const dry = add(context.createGain()); dry.gain.value = .9; input.connect(dry); dry.connect(sum);
+  // Digital double: two short, slowly modulated delays (chorus) behind the voice.
+  for (const [ms, rate] of [[11, .21], [17, .33]] as const) {
+    const delay = add(context.createDelay(.05)); delay.delayTime.value = ms / 1000;
+    const lfo = add(context.createOscillator()); lfo.frequency.value = rate;
+    const depth = add(context.createGain()); depth.gain.value = .0018;
+    lfo.connect(depth); depth.connect(delay.delayTime); lfo.start();
+    const level = add(context.createGain()); level.gain.value = .32;
+    input.connect(delay); delay.connect(level); level.connect(sum);
+  }
+  // Metallic edge: a little ring modulation at a low carrier.
+  const ring = add(context.createGain()); ring.gain.value = 0;
+  const carrier = add(context.createOscillator()); carrier.frequency.value = 52; carrier.start();
+  carrier.connect(ring.gain);
+  const ringLevel = add(context.createGain()); ringLevel.gain.value = .14;
+  input.connect(ring); ring.connect(ringLevel); ringLevel.connect(sum);
+  // Short comb resonance: the "inside a machine" colour.
+  const comb = add(context.createDelay(.02)); comb.delayTime.value = .0042;
+  const feedback = add(context.createGain()); feedback.gain.value = .38;
+  const combLevel = add(context.createGain()); combLevel.gain.value = .16;
+  input.connect(comb); comb.connect(feedback); feedback.connect(comb); comb.connect(combLevel); combLevel.connect(sum);
+  // Weight and edge, then gentle saturation.
+  const low = add(context.createBiquadFilter()); low.type = 'lowshelf'; low.frequency.value = 140; low.gain.value = 4;
+  const presence = add(context.createBiquadFilter()); presence.type = 'peaking'; presence.frequency.value = 2900; presence.Q.value = 1.1; presence.gain.value = 3.5;
+  const air = add(context.createBiquadFilter()); air.type = 'highshelf'; air.frequency.value = 9000; air.gain.value = -3;
+  const shaper = add(context.createWaveShaper()); shaper.curve = softClip(1.6); shaper.oversample = '2x';
+  sum.connect(low); low.connect(presence); presence.connect(air); air.connect(shaper); shaper.connect(output);
+  return nodes;
+}
+
+export function createVoiceGraph(context: AudioContext, style: VoiceStyle = 'ultron'): VoiceGraph {
   const input = context.createGain();
+  const shaped = context.createGain();
+  const character = characterChain(context, input, shaped, style);
   // Sub-bass presence: lift the low shelf for physical weight.
   const subBass = context.createBiquadFilter();
   subBass.type = 'lowshelf'; subBass.frequency.value = 120; subBass.gain.value = 6.5;
@@ -56,7 +112,7 @@ export function createVoiceGraph(context: AudioContext): VoiceGraph {
   const analyser = context.createAnalyser();
   analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.78;
 
-  input.connect(subBass); subBass.connect(comp);
+  shaped.connect(subBass); subBass.connect(comp);
   comp.connect(dry); comp.connect(reverb); reverb.connect(wet);
   dry.connect(panner); wet.connect(panner);
   panner.connect(analyser); analyser.connect(context.destination);
@@ -75,7 +131,7 @@ export function createVoiceGraph(context: AudioContext): VoiceGraph {
       fftSignal.level = Math.min(1, total / 8 * 1.6);
     },
     dispose() {
-      try { input.disconnect(); subBass.disconnect(); comp.disconnect(); dry.disconnect(); wet.disconnect(); reverb.disconnect(); panner.disconnect(); analyser.disconnect(); } catch { /* already gone */ }
+      try { for (const node of character) { node.disconnect(); if (node instanceof OscillatorNode) node.stop(); } input.disconnect(); shaped.disconnect(); subBass.disconnect(); comp.disconnect(); dry.disconnect(); wet.disconnect(); reverb.disconnect(); panner.disconnect(); analyser.disconnect(); } catch { /* already gone */ }
       fftSignal.level = 0; fftSignal.bands.fill(0);
     },
   };

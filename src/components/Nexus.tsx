@@ -26,6 +26,7 @@ import { AppShell } from './AppShell';
 import { Ambience } from './Ambience';
 import { BootSequence } from './BootSequence';
 import { FormFX } from './FormFX';
+import { useTransitionSound } from '@/hooks/useTransitionSound';
 const Scene = dynamic(() => import('@/rendering/SpatialScene'), { ssr: false });
 class RenderBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -46,10 +47,11 @@ export function Nexus() {
   const [ready, setReady] = useState(false);
   const renderer = useNexus(s => s.renderer), expanded = useNexus(s => s.expanded), presenting = useNexus(s => s.presenting), pinned = useNexus(s => s.pinned), help = useNexus(s => s.help), launcher = useNexus(s => s.launcher);
   const inProject = useProject(s => !!s.focused);
-  const { start, stop } = useHandTracking(); const toggleAudio = useAudio(); useControls(); useAmbient();
+  const { start, stop } = useHandTracking(); const toggleAudio = useAudio(); useControls(); useAmbient(); useTransitionSound();
   const assistant = useAssistantController();
   const gaze = useGazeTracking();
   const formPhase = useForm(s => s.phase);
+  const aiLive = useAssistant(s => s.visible || s.status === 'Thinking' || s.status === 'Streaming' || s.status === 'Speaking');
   // Gaze tracking only makes sense while NEXUS is embodied; stop it otherwise.
   useEffect(() => { if (formPhase === 'NORMAL') gaze.stop(); }, [formPhase, gaze]);
   useEffect(() => {
@@ -65,5 +67,5 @@ export function Nexus() {
   // module morph stands down until the user exits it.
   useEffect(() => useNexus.subscribe((s, prev) => { if (s.expanded !== prev.expanded && !useProject.getState().focused) useWorld.getState().applyModule(s.expanded); }), []);
   const tracking = () => { const status = useNexus.getState().tracking; if (['loading', 'searching', 'tracking'].includes(status)) stop(); else void start(); };
-  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''}`}><AppShell /><div className="titlebar-drag" aria-hidden="true" /><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><Ambience /><FormFX /><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} gaze={gaze} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><BootSequence /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
+  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''} ${aiLive ? 'ai-live' : ''}`}><AppShell /><div className="titlebar-drag" aria-hidden="true" /><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><Ambience /><FormFX /><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} gaze={gaze} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><BootSequence /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
 }

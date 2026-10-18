@@ -151,7 +151,19 @@ export function useAssistantController() {
     catch { stopMicrophone(); useAssistant.setState({ error: 'The microphone could not start. Try again from the microphone button.' }); }
   }, [interrupt, stopMicrophone]);
   useEffect(() => {
-    speaker.current = new CinematicSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI);
+    speaker.current = new CinematicSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI, () => useAssistant.getState().voiceStyle);
+    // Voice preferences persist; asking for status also starts preparing the
+    // neural voice so it is ready by the time NEXUS first speaks.
+    try { const saved = JSON.parse(localStorage.getItem('nexus-voice') || '{}'); useAssistant.setState({ ...(typeof saved.voice === 'boolean' ? { voice: saved.voice } : {}), ...(saved.voiceStyle === 'natural' || saved.voiceStyle === 'ultron' ? { voiceStyle: saved.voiceStyle } : {}) }); } catch { /* defaults */ }
+    let neuralTimer: ReturnType<typeof setTimeout> | null = null;
+    const neural = async () => {
+      try {
+        const data = await (await fetch('/api/tts', { cache: 'no-store' })).json();
+        useAssistant.setState({ neural: { state: String(data.state ?? 'off'), progress: Number(data.progress) || 0, message: String(data.message ?? '') } });
+        if (data.state === 'loading') neuralTimer = setTimeout(neural, 4000);
+      } catch { /* The browser voice still works. */ }
+    };
+    void neural();
     refreshRef.current = refresh; void refresh();
     // Starting Ollama after NEXUS should just work: re-check while the brain is
     // not ready (only while the panel is open) and whenever the window regains focus.
@@ -161,12 +173,13 @@ export function useAssistantController() {
     const unsubscribe = useAssistant.subscribe((s, previous) => {
       if (s.wakeAt !== previous.wakeAt) { armedUntil.current = Date.now() + 30000; if (s.microphone && !generating.current && !speaker.current?.speaking) useAssistant.setState({ status: 'Listening' }); }
       if (!s.voice && previous.voice) speaker.current?.stop();
+      if (s.voice !== previous.voice || s.voiceStyle !== previous.voiceStyle) { try { localStorage.setItem('nexus-voice', JSON.stringify({ voice: s.voice, voiceStyle: s.voiceStyle })); } catch { /* storage blocked */ } }
     });
     const visibility = () => { if (document.hidden) { interrupt(false); stopMicrophone(); useAssistant.setState({ status: 'Idle' }); } };
     const close = () => { interrupt(false); stopMicrophone(); useAssistant.setState({ status: 'Idle' }); };
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('nexus:stop-ai', close);
-    return () => { clearInterval(poll); window.removeEventListener('focus', focus); unsubscribe(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('nexus:stop-ai', close); interrupt(false); stopMicrophone(); speaker.current = null; };
+    return () => { if (neuralTimer) clearTimeout(neuralTimer); clearInterval(poll); window.removeEventListener('focus', focus); unsubscribe(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('nexus:stop-ai', close); interrupt(false); stopMicrophone(); speaker.current = null; };
   }, [interrupt, refresh, stopMicrophone]);
   const clear = () => { interrupt(false); useAssistant.setState({ messages: [], error: null, transcript: '', status: 'Idle', link: null }); };
   return { send, interrupt, toggleMicrophone, clear, refresh, stopMicrophone, pullModel };

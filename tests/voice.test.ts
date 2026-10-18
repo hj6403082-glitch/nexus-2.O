@@ -16,22 +16,29 @@ test('browser voice drains long sentences and final unpunctuated text in order',
     spoken[2].onend?.(); await tick(); assert.equal(speaker.speaking, false);
   } finally { speaker.stop(); Object.assign(globalThis, { SpeechSynthesisUtterance: originals.utterance, speechSynthesis: originals.speech }); }
 });
-test('premium fetches serialize and stop aborts an in-flight synthesis', async () => {
-  const original = globalThis.fetch;
+test('neural voice synthesises at most two sentences ahead and stop aborts them all', async () => {
+  const original = globalThis.fetch, audioContext = (globalThis as { AudioContext?: unknown }).AudioContext;
   const signals: AbortSignal[] = [];
+  (globalThis as { AudioContext?: unknown }).AudioContext = class {};
   globalThis.fetch = async (_url, init) => new Promise((_resolve, reject) => {
     const signal = init!.signal!; signals.push(signal);
     signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
   });
   const speaker = new CinematicSpeaker(() => {}, () => '');
-  Object.assign(speaker, { ensureContext: async () => true });
   try {
-    speaker.feed('First.'); await tick(); speaker.feed('Second.'); await tick();
-    assert.equal(signals.length, 1);
-    // Stop is safe even without a browser RAF implementation in this test.
+    speaker.feed('First. Second. Third. Fourth.'); await tick();
+    assert.ok(signals.length >= 2 && signals.length <= 3, `in flight: ${signals.length}`);
     const cancel = globalThis.cancelAnimationFrame;
     globalThis.cancelAnimationFrame = () => {};
     try { speaker.stop(); } finally { globalThis.cancelAnimationFrame = cancel; }
-    await tick(); assert.equal(signals[0].aborted, true); assert.equal(speaker.speaking, false);
-  } finally { globalThis.fetch = original; }
+    await tick(); assert.ok(signals.every(s => s.aborted)); assert.equal(speaker.speaking, false);
+  } finally { globalThis.fetch = original; (globalThis as { AudioContext?: unknown }).AudioContext = audioContext; }
+});
+test('the opening clause is spoken before the sentence ends', async () => {
+  const spoken: { text: string }[] = [];
+  const originals = { utterance: globalThis.SpeechSynthesisUtterance, speech: globalThis.speechSynthesis };
+  Object.assign(globalThis, { SpeechSynthesisUtterance: class { constructor(public text: string) {} }, speechSynthesis: { getVoices: () => [], speak: (u: { text: string }) => spoken.push(u), cancel: () => {} } });
+  const speaker = new CinematicSpeaker(() => {}, () => '');
+  try { speaker.feed('The answer is simple, and it starts right here'); await tick(); assert.equal(spoken[0]?.text, 'The answer is simple,'); }
+  finally { speaker.stop(); Object.assign(globalThis, { SpeechSynthesisUtterance: originals.utterance, speechSynthesis: originals.speech }); }
 });

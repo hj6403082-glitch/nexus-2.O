@@ -33,6 +33,14 @@ Copy `.env.example` to `.env.local` and choose a provider. Never commit `.env.lo
 
 Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation commands work without either provider. Conversation history is memory-only. Microphone and speech output are opt-in. Browser recognition may use its vendor's servers; native speech synthesis varies by OS and is not routed through spatial audio. Escape stops active AI input/output.
 
+**Speed.** NEXUS keeps the Ollama model loaded (`OLLAMA_KEEP_ALIVE`, default `30m`), warms it when the app opens, sends only the recent conversation, and keeps the system prompt identical between questions so Ollama reuses its prompt cache. Answers are kept short unless you ask for depth. The first answer after starting your PC is still slower while the model loads.
+
+**Voice.** With voice on, NEXUS speaks with a local neural voice (Kokoro, `am_michael` by default; change it with `NEXUS_VOICE_ID`). The first time, it downloads about 90 MB into `.nexus-cache/models`, so it needs internet once; until then, and whenever it is unavailable, the browser's best natural voice is used. In Ask NEXUS, **Character** picks *Ultron-style synthetic* (an original deep, metallic, slightly doubled character voice, not a copy of any actor) or *Natural human*. Set `ELEVENLABS_API_KEY` to use ElevenLabs instead, or `NEXUS_LOCAL_VOICE=off` to skip the neural voice. Speech starts on the first phrase and the next sentences are prepared while one plays.
+
+**Sound effects.** Transformations have synthesized sound cues (no audio files). Toggle them with **FX** in the bottom bar; the choice is remembered.
+
+**The core.** In spatial mode a living energy sphere sits at the centre of the orbit. It breathes while idle, swirls while NEXUS thinks, ripples with the voice while it speaks and swells toward your pointer. Click it to talk to NEXUS.
+
 ## Modules
 
 - Projects and Calendar store entries in this browser. Projects can attach local images and videos in IndexedDB. They are not synced cloud accounts.

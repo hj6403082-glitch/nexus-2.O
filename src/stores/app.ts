@@ -2,9 +2,9 @@ import { create } from 'zustand';
 // App-window state: whether NEXUS runs as an installed app and whether the
 // browser is offering to install it.
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
-interface AppState { standalone: boolean; installable: boolean; installed: boolean; deferred: InstallPrompt | null; install: () => Promise<void>; }
+interface AppState { sfx: boolean; standalone: boolean; installable: boolean; installed: boolean; deferred: InstallPrompt | null; install: () => Promise<void>; }
 export const useApp = create<AppState>((set, get) => ({
-  standalone: false, installable: false, installed: false, deferred: null,
+  sfx: true, standalone: false, installable: false, installed: false, deferred: null,
   install: async () => {
     const prompt = get().deferred; if (!prompt) return;
     set({ deferred: null, installable: false });

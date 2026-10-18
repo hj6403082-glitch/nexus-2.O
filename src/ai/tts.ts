@@ -10,7 +10,9 @@
 // When ELEVENLABS_API_KEY is not set, the route reports unavailable and the
 // client falls back to the browser's built-in speech synthesis.
 
-export const ttsProvider = () => (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'none');
+import { localVoiceEnabled, localVoiceStatus, warmLocalVoice } from './localVoice';
+// ElevenLabs when a key is set, otherwise the local neural voice (Kokoro).
+export const ttsProvider = () => (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : localVoiceEnabled() ? 'local' : 'none');
 
 // "Daniel" — a deep, authoritative delivery — is a sensible default; override
 // with ELEVENLABS_VOICE_ID for any voice on your account.
@@ -19,12 +21,18 @@ const DEFAULT_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_turbo_v2_5';
 
 export function ttsStatus() {
   const provider = ttsProvider();
+  if (provider === 'local') {
+    warmLocalVoice();
+    const local = localVoiceStatus();
+    return { provider, configured: local.state === 'ready', state: local.state, progress: local.progress,
+      message: local.state === 'ready' ? 'Neural voice · on this computer' : local.state === 'failed' ? 'The neural voice could not load (it needs internet once to download). Using the browser voice.' : `Preparing the neural voice${local.progress ? ` · ${local.progress}%` : ''}. Using the browser voice until it is ready.` };
+  }
   return {
     provider,
-    configured: provider !== 'none',
+    configured: provider !== 'none', state: provider === 'none' ? 'off' : 'ready', progress: 100,
     message: provider === 'elevenlabs'
       ? `Premium voice · ElevenLabs (${DEFAULT_VOICE})`
-      : 'Add ELEVENLABS_API_KEY to .env.local for the premium NEXUS voice. The browser voice is used until then.',
+      : 'Neural voice is turned off (NEXUS_LOCAL_VOICE=off). Using the browser voice.',
   };
 }
 

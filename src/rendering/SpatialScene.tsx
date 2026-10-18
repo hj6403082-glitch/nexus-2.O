@@ -25,6 +25,7 @@ import { stepEnvironment } from './environment';
 import { FloorCaustics } from './FloorCaustics';
 import { attachBend, createBendUniforms, driveBend } from './cardBend';
 import { flungSlot } from './flick';
+import { CoreOrb } from './CoreOrb';
 
 const moduleIds = modules.map(m => m.id);
 const EMPTY: string[] = [];
@@ -115,6 +116,7 @@ function World() {
   const time = useRef(0);
   const zoom = useRef({ value: 1, velocity: 0 });
   const groupAmt = useRef({ value: 0, velocity: 0 }), projectAmt = useRef({ value: 0, velocity: 0 });
+  const lookX = useRef({ value: 0, velocity: 0 }), lookY = useRef({ value: 0, velocity: 0 });
   const frameCount = useRef(0), sampleTime = useRef(0), lowSamples = useRef(0);
   const { camera, gl, setDpr } = useThree();
   const quality = useNexus(s => s.quality);
@@ -127,7 +129,7 @@ function World() {
     gl.domElement.addEventListener('webglcontextlost', lost);
     return () => gl.domElement.removeEventListener('webglcontextlost', lost);
   }, [gl]);
-  useFrame((_, dt) => {
+  useFrame((frameState, dt) => {
     const state = useNexus.getState();
     stepEnvironment(dt); // advance eased bridge-load for the thermal grade
     angle.current = stepSpring(orbit.current, state.index * Math.PI * 2 / modules.length, dt, 65, 17);
@@ -141,7 +143,10 @@ function World() {
     const project = stepSpring(projectAmt.current, normal && useProject.getState().focused ? 1 : 0, dt, 45, 16);
     const shot = composeShot({ approach, grouped, project, arc: time.current * .25 });
     const baseZ = 10 + (1 - stepSpring(zoom.current, normal ? handSignal.zoom : 1, dt)) * 3 - (presentation.active ? presentationEnvelopes(presentation.time).push * .35 : 0);
-    camera.position.set(Math.sin(time.current * .12) * .06 + shot.dx, .65 + Math.sin(time.current * .15) * .035 + shot.dy, baseZ + shot.dz);
+    // Gentle parallax: the camera leans toward the pointer so the space feels alive.
+    const still = normal && !presentation.active && !state.dragging;
+    const px = stepSpring(lookX.current, still ? frameState.pointer.x * .45 : 0, dt, 22, 10), py = stepSpring(lookY.current, still ? frameState.pointer.y * .22 : 0, dt, 22, 10);
+    camera.position.set(Math.sin(time.current * .12) * .06 + shot.dx + px, .65 + Math.sin(time.current * .15) * .035 + shot.dy + py, baseZ + shot.dz);
     camera.lookAt(shot.lx, shot.ly, shot.lz);
     if (document.hidden || dt > .25) { frameCount.current = 0; sampleTime.current = 0; lowSamples.current = 0; if (state.fps) useNexus.setState({ fps: 0 }); return; }
     frameCount.current++; sampleTime.current += dt;
@@ -153,7 +158,7 @@ function World() {
       frameCount.current = 0; sampleTime.current = 0;
     }
   });
-  return <><HumanForm /><PresentingHand /><WorldGeometry time={time} /><ProjectWorld time={time} /><WeatherEffects time={time} /><Atmosphere motionTime={time} /><FloorCaustics time={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
+  return <><HumanForm /><CoreOrb /><PresentingHand /><WorldGeometry time={time} /><ProjectWorld time={time} /><WeatherEffects time={time} /><Atmosphere motionTime={time} /><FloorCaustics time={time} />{modules.map((module, i) => <Card key={module.id} module={module} ordinal={i} angle={angle} time={time} />)}
     <EffectComposer multisampling={0}><Bloom intensity={quality === 'high' ? .35 : 0} luminanceThreshold={.85} mipmapBlur /><WorldGrade /></EffectComposer>
   </>;
 }
