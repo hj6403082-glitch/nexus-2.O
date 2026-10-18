@@ -9,6 +9,7 @@ varying vec2 vUv; uniform float uMode;
 vec3 hash3(vec2 p){vec3 q=fract(vec3(p.xyx)*vec3(.1031,.1030,.0973));q+=dot(q,q.yxz+33.33);return fract((q.xxy+q.yzz)*q.zyx);}
 float ell(vec3 p,vec3 r){float k0=length(p/r),k1=length(p/(r*r));return k0*(k0-1.)/max(k1,.0001);}
 float sm(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
+float sx(float a,float b,float k){return -sm(-a,-b,k);}
 float cap(vec3 p,vec3 a,vec3 b,float r){vec3 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h)-r;}
 // A sculpted android head (no neck or body): defined brow, cheekbones, nose,
 // lips, jaw and chin rather than a smooth blob, so the particles read as a face.
@@ -32,6 +33,19 @@ float field(vec3 p){
  head=min(head,ell(p-vec3(.115,.752,.262),vec3(.045,.032,.035)));
  head=min(head,ell(p-vec3(-.115,.752,.262),vec3(.045,.032,.035)));
  head=max(head,-ell(p-vec3(0.,.489,.32),vec3(.10,.008,.05)));
+ // Finer anatomy: nostril wings, philtrum, eyelids, temples, cheek hollows,
+ // smile lines, chin and the inner ear, so creases catch shadow.
+ for(int k=0;k<2;k++){float s=k==0?1.:-1.;
+  head=sm(head,ell(p-vec3(s*.034,.598,.318),vec3(.026,.02,.024)),.012);
+  head=max(head,-ell(p-vec3(s*.02,.584,.33),vec3(.011,.006,.012)));
+  head=sm(head,ell(p-vec3(s*.115,.782,.288),vec3(.058,.012,.03)),.012);
+  head=sx(head,-ell(p-vec3(s*.29,.80,.10),vec3(.05,.07,.06)),.04);
+  head=sx(head,-ell(p-vec3(s*.17,.55,.27),vec3(.05,.045,.04)),.035);
+  head=sx(head,-cap(p,vec3(s*.052,.585,.315),vec3(s*.105,.47,.29),.006),.012);
+  head=sx(head,-ell(p-vec3(s*.33,.70,0.),vec3(.012,.06,.035)),.012);
+  head=sx(head,-ell(p-vec3(s*.105,.49,.29),vec3(.012,.012,.015)),.01);}
+ head=sx(head,-cap(p,vec3(0.,.565,.335),vec3(0.,.528,.322),.007),.01);
+ head=sm(head,ell(p-vec3(0.,.375,.25),vec3(.055,.03,.04)),.03);
  return head;
 }
 vec3 normalAt(vec3 p){vec2 e=vec2(.001,0.);return normalize(vec3(field(p+e.xyy)-field(p-e.xyy),field(p+e.yxy)-field(p-e.yxy),field(p+e.yyx)-field(p-e.yyx)));}
@@ -43,7 +57,14 @@ void main(){
  vec3 quant=floor(clamp((p+vec3(1.2,1.5,.8))/vec3(2.4,3.,1.6),0.,1.)*65535.+.5);
  if(uMode<.5)gl_FragColor=vec4(floor(quant/256.)/255.,1.);
  else if(uMode<1.5)gl_FragColor=vec4(mod(quant,256.)/255.,1.);
- else gl_FragColor=vec4(normalAt(p)*.5+.5,1.);
+ else if(uMode<2.5)gl_FragColor=vec4(normalAt(p)*.5+.5,1.);
+ else{
+  // Ambient occlusion: how much nearby surface hides each point, so creases
+  // (eye sockets, nostrils, lips, ears) read as shadow.
+  vec3 n=normalAt(p);float occ=0.,w=1.;
+  for(int i=1;i<=5;i++){float h=.012*float(i)*float(i);occ+=(h-field(p+n*h))*w;w*=.7;}
+  gl_FragColor=vec4(vec3(clamp(1.-occ*4.,0.,1.)),1.);
+ }
 }`;
 // Greedy Poisson selection over GPU-projected candidates. Reduce exclusion
 // radius until an exact count exists; no duplicate/filler points are added.
@@ -70,7 +91,7 @@ export async function poissonSelect(candidates: Float32Array, count: number, sli
   }
   return accepted;
 }
-export type BakedSurface = { positions: Float32Array; normals: Float32Array; count: number };
+export type BakedSurface = { positions: Float32Array; normals: Float32Array; occlusion: Float32Array; count: number };
 export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (message: string) => void, field?: string): Promise<BakedSurface> {
   report('Baking the human surface');
   const target = new THREE.WebGLRenderTarget(256, 256, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
@@ -79,7 +100,7 @@ export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (
   const geometry = new THREE.PlaneGeometry(2, 2); scene.add(new THREE.Mesh(geometry, material));
   const bytes: Uint8Array[] = [];
   try {
-    for (let pass = 0; pass < 3; pass++) {
+    for (let pass = 0; pass < 4; pass++) {
       await nextFrame(); const previous = gl.getRenderTarget(); const autoClear = gl.autoClear;
       try { material.uniforms.uMode.value = pass; gl.autoClear = true; gl.setRenderTarget(target); gl.render(scene, camera); const data = new Uint8Array(256 * 256 * 4); gl.readRenderTargetPixels(target, 0, 0, 256, 256, data); bytes.push(data); }
       finally { gl.setRenderTarget(previous); gl.autoClear = autoClear; }
@@ -90,7 +111,7 @@ export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (
   report('Spreading the particles');
   const accepted = await poissonSelect(candidates, count);
   if (accepted.length !== count) throw new Error('The human surface could not be baked. Try returning to spatial mode and retrying.');
-  const positions = new Float32Array(count * 3), normals = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) for (let a = 0; a < 3; a++) { positions[i * 3 + a] = candidates[accepted[i] * 3 + a]; normals[i * 3 + a] = bytes[2][accepted[i] * 4 + a] / 255 * 2 - 1; }
-  return { positions, normals, count };
+  const positions = new Float32Array(count * 3), normals = new Float32Array(count * 3), occlusion = new Float32Array(count);
+  for (let i = 0; i < count; i++) { for (let a = 0; a < 3; a++) { positions[i * 3 + a] = candidates[accepted[i] * 3 + a]; normals[i * 3 + a] = bytes[2][accepted[i] * 4 + a] / 255 * 2 - 1; } occlusion[i] = bytes[3][accepted[i] * 4] / 255; }
+  return { positions, normals, occlusion, count };
 }

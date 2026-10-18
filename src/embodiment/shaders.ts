@@ -1,8 +1,8 @@
 export const humanVertex = `
 attribute vec3 aSource; attribute vec3 aColor; attribute vec3 aNormal;
-attribute float aCard; attribute float aSeed; attribute vec2 aCompute;
+attribute float aCard; attribute float aSeed; attribute vec2 aCompute; attribute float aAO;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
-uniform vec2 uHead; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
+uniform vec2 uHead; uniform vec2 uMouth; uniform vec2 uEye; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
 uniform sampler2D uDisplace; uniform float uComputeSize;
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
@@ -26,6 +26,9 @@ void main(){
    // falloff (no seam), the upper lip lifts slightly.
    float jaw=(1.-smoothRange(.47,.497,target.y))*smoothRange(.30,.37,target.y)*(1.-smoothRange(.15,.25,abs(target.x)))*smoothRange(0.,.14,target.z);
    if(jaw>0.){mat3 open=rx(uJaw*.2*jaw);target=vec3(0.,.56,0.)+open*(target-vec3(0.,.56,0.));n=open*n;}
+   // Lip shapes: wide for bright vowels, rounded and pushed forward for "oo".
+   float lips=(1.-smoothRange(.6,1.,length(vec2(target.x/.12,(target.y-.488)/.06))))*smoothRange(.2,.28,target.z);
+   target.x*=1.+(uMouth.x*.14-uMouth.y*.2)*lips;target.z+=uMouth.y*.025*lips;
    target.y+=uJaw*.012*smoothRange(.495,.505,target.y)*(1.-smoothRange(.53,.56,target.y))*(1.-smoothRange(.08,.12,abs(target.x)))*step(.25,target.z);
    mat3 head=ry(uHead.x)*rx(uHead.y);target=pivot+head*(target-pivot);n=head*n;
  }
@@ -58,18 +61,31 @@ void main(){
  float settle=(1.-exp(-5.*body)*cos(7.*body))/(1.-exp(-5.)*cos(7.));
  p=mix(p,target,settle);
  p+=normalize(target-hub+vec3(.0001))*sin(body*3.14159265)*mix(.55,.25,uReturn);
- vec3 key=normalize(vec3(-.55,.7,1.));float facing=clamp(dot(normalize(n),key),0.,1.);
- vec3 blue=mix(vec3(.035,.12,.24),vec3(.32,.67,.88),pow(facing,.85));
- blue+=vec3(.04,.09,.13)*pow(clamp(facing,0.,1.),16.);
- // Rim light keeps the silhouette crisp against the room.
- blue+=vec3(.08,.2,.32)*pow(1.-abs(normalize(n).z),3.)*presence;
+ // Three-point studio light: a warm-white key from upper left, a cool fill
+ // and a cyan rim, all shaded by the baked occlusion so creases fall into shadow.
+ vec3 nn=normalize(n);
+ vec3 key=normalize(vec3(-.55+sin(uClock*.21)*.12,.7,1.));float facing=clamp(dot(nn,key),0.,1.);
+ float fill=clamp(dot(nn,normalize(vec3(.8,-.1,.7))),0.,1.);
+ float ao=mix(1.,.08+.92*pow(aAO,1.6),presence*.9+.1);
+ vec3 blue=mix(vec3(.02,.06,.14),vec3(.40,.74,.95),pow(facing,1.1))+vec3(.05,.10,.20)*fill;
+ blue+=vec3(.10,.14,.16)*pow(facing,18.); // soft specular sheen
+ blue*=ao;
+ blue+=vec3(.10,.26,.40)*pow(1.-abs(nn.z),3.)*presence; // rim
  float eye=step(.5,aSeed-1.); // last two particles have an explicit eye flag
  float blink=1.-step(.965,fract(uClock/4.7+.3))*presence;
  if(eye>.5)blue=mix(blue,vec3(.7,.88,1.)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime)*blink);
- float seam=step(abs(position.y-.489),.012)*step(abs(position.x),.1)*step(.25,position.z);
- blue+=seam*uJaw*vec3(.12,.26,.32);
- // A holographic scan line travels up the body while it is present.
- blue+=vec3(.12,.28,.38)*pow(.5+.5*sin(position.y*7.-uClock*2.2),36.)*presence;
+ // Glowing irises with dark pupils that glance around (uEye) and close in blinks.
+ vec3 look=normalize(vec3(uEye*.35,1.));
+ for(int k=0;k<2;k++){vec3 q=position-vec3(k==0?.115:-.115,.752,.262);
+  if(length(q/vec3(.052,.04,.045))<1.12&&position.z>.24&&eye<.5){float d=dot(normalize(q),look);
+   vec3 iris=mix(vec3(.10,.55,.95),vec3(.45,.95,1.25),smoothRange(.86,.93,d))*(.7+uFlare*.6);
+   vec3 c=mix(vec3(.22,.30,.36),iris,smoothRange(.78,.84,d));c=mix(c,vec3(.01,.02,.04),smoothRange(.95,.97,d));
+   blue=mix(blue,c,presence*blink);}}
+ // Lips read as a softer, paler material and brighten as they move.
+ float lipTone=(1.-smoothRange(.65,1.,length(vec2(position.x/.11,(position.y-.488)/.05))))*step(.25,position.z);
+ blue=mix(blue,vec3(.50,.58,.92)*(.45+.75*facing)*ao,lipTone*.5)+lipTone*uJaw*vec3(.10,.22,.34);
+ // A faint holographic scan line drifts up the face while it is present.
+ blue+=vec3(.08,.2,.28)*pow(.5+.5*sin(position.y*7.-uClock*2.2),48.)*presence;
  vColor=mix(aColor,blue,body);
  // Energy: in-flight particles run hot cyan, the forming front flares, the
  // core flashes white and dispersing motes glow gold. Values above 1 bloom.

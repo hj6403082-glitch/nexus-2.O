@@ -29,7 +29,9 @@ export function HumanForm() {
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
   const dispersal = useRef({ value: 0, velocity: 0 }), jaw = useRef({ value: 0, velocity: 0 });
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
+  const wide = useRef({ value: 0, velocity: 0 }), round = useRef({ value: 0, velocity: 0 }), eyeX = useRef({ value: 0, velocity: 0 }), eyeY = useRef({ value: 0, velocity: 0 });
+  const saccade = useRef({ x: 0, y: 0, next: 0 });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uMouth: { value: new THREE.Vector2() }, uEye: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
@@ -43,7 +45,7 @@ export function HumanForm() {
     if (target !== 'human' || building.current || useForm.getState().ready) return;
     building.current = true;
     const report = (progress: string) => { if (mounted.current) useForm.setState({ progress }); };
-    const count = surface.current?.count ?? (useNexus.getState().quality === 'high' ? 14000 : 9000);
+    const count = surface.current?.count ?? (useNexus.getState().quality === 'high' ? 20000 : 12000);
     void (async () => {
       try {
         // The particle count is fixed from this point until the orbit returns.
@@ -58,9 +60,10 @@ export function HumanForm() {
         g.setAttribute('aColor', new THREE.BufferAttribute(captured.colors, 3));
         g.setAttribute('aCard', new THREE.BufferAttribute(captured.cards, 1));
         // Eye lights are part of this buffer, not a separately animated mesh.
-        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.115 : .115, .752, .3], at * 3); baked.normals.set([0, 0, 1], at * 3); captured.seeds[at] = 2; }
+        for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.115 : .115, .752, .3], at * 3); baked.normals.set([0, 0, 1], at * 3); baked.occlusion[at] = 1; captured.seeds[at] = 2; }
+        g.setAttribute('aAO', new THREE.BufferAttribute(baked.occlusion, 1));
         g.setAttribute('aSeed', new THREE.BufferAttribute(captured.seeds, 1));
-        uniforms.current.uSize.value = count > 10000 ? .019 : .024;
+        uniforms.current.uSize.value = count > 15000 ? .021 : .027;
         // GPGPU ferrofluid: a square displacement field, one texel per particle.
         // Each particle gets its UV into that field; the shader samples it to
         // perturb the surface like magnetic fluid in zero-g.
@@ -108,6 +111,16 @@ export function HumanForm() {
       // open and close it naturally instead of snapping.
       const speech = Math.min(1, Math.max(voiceSignal.level, fftSignal.bands[0] * 1.1));
       material.current.uniforms.uJaw.value = THREE.MathUtils.clamp(stepSpring(jaw.current, speech, Math.min(delta, .05), 420, 30), 0, 1);
+      // Lip shape: bright high-frequency sounds widen the mouth, low dark ones
+      // round it. Without a spectrum (browser voice) a gentle pseudo-random
+      // shape keeps the lips from moving like a hinge.
+      const b = fftSignal.bands, t = state.clock.elapsedTime, dt = Math.min(delta, .05);
+      const spectral = b[1] + b[2] + b[3] + b[4] > .02;
+      const bright = spectral ? THREE.MathUtils.clamp(((b[3] + b[4]) - (b[1] + b[2])) * 2.5, -1, 1) : Math.sin(t * 7.3) * Math.sin(t * 2.9);
+      material.current.uniforms.uMouth.value.set(stepSpring(wide.current, Math.max(0, bright) * speech, dt, 300, 26), stepSpring(round.current, Math.max(0, -bright) * speech, dt, 300, 26));
+      // Eyes: small saccades every few seconds plus a hint of the pointer.
+      if (t > saccade.current.next) saccade.current = { x: (Math.random() - .5) * .5, y: (Math.random() - .5) * .3, next: t + 1.2 + Math.random() * 2.8 };
+      material.current.uniforms.uEye.value.set(stepSpring(eyeX.current, saccade.current.x + gaze.current.x * 1.5, dt, 900, 45), stepSpring(eyeY.current, saccade.current.y - gaze.current.y * 1.5, dt, 900, 45));
       material.current.uniforms.uFlare.value = gazeSignal.active ? 1 : .55;
       // Advance the ferrofluid GPGPU simulation and hand its texture to the shader.
       if (ferro.current) {
