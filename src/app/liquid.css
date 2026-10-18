@@ -1,0 +1,129 @@
+/* Zeno liquid theme: lively greens (mint, lime, a pop of sunshine on deep forest),
+   rounded glass that catches a pointer-tracked highlight, a gooey cursor and
+   ripples. Loaded last so it restyles the earlier sheets. */
+:root {
+  --bg: #030f0a; --ink: #ecfff5; --muted: #93c4ac; --line: #9dffcf1c;
+  --aqua: #3dffd0; --violet: #b8ff4a; --magenta: #ffd23f; --blue: #8fb4ff;
+  --iris: linear-gradient(120deg, var(--aqua), var(--violet) 52%, var(--magenta));
+  --glass: linear-gradient(150deg, #123a2ccc, #0a2219e6 55%, #0b1f22e6);
+  --glass-edge: #a8ffd833;
+  --liquid-ease: cubic-bezier(.34, 1.56, .64, 1);
+}
+::selection { background: #1fd98a88; }
+button:focus-visible, input:focus-visible { outline-color: var(--aqua); }
+.nexus { background: radial-gradient(ellipse at 50% 46%, #0f3a2aaa 0, #04170f 55%, #020d08 100%); }
+.atmospheric-light { background: radial-gradient(ellipse, #1fd98a22, transparent 70%); }
+
+/* Aurora: four soft blobs drifting behind the scene; one leans to the pointer. */
+.liquid-aurora { position: absolute; inset: -10%; z-index: 0; pointer-events: none; filter: blur(70px) saturate(1.2); opacity: .75; }
+.liquid-aurora i { position: absolute; width: 46vmax; height: 46vmax; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; mix-blend-mode: screen; animation: aurora-drift 26s ease-in-out infinite alternate, liquid-morph 14s ease-in-out infinite; }
+.liquid-aurora i:nth-child(1) { left: -6%; top: 4%; background: radial-gradient(circle at 40% 40%, #3dffd055, transparent 65%); }
+.liquid-aurora i:nth-child(2) { right: -8%; top: -6%; background: radial-gradient(circle at 50% 50%, #3dffa25c, transparent 66%); animation-delay: -9s, -3s; }
+.liquid-aurora i:nth-child(3) { left: 28%; bottom: -18%; background: radial-gradient(circle at 50% 50%, #ffd23f3d, transparent 64%); animation-delay: -15s, -7s; }
+.liquid-aurora i.follow { width: 30vmax; height: 30vmax; left: calc(var(--px-n, .5) * 100% - 15vmax); top: calc(var(--py-n, .5) * 100% - 15vmax); background: radial-gradient(circle, #7dffb833, transparent 66%); transition: left 1.6s var(--ease-out, ease-out), top 1.6s var(--ease-out, ease-out); animation: liquid-morph 9s ease-in-out infinite; }
+@keyframes aurora-drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(6vw, -4vh, 0) scale(1.12); } 100% { transform: translate3d(-5vw, 5vh, 0) scale(.94); } }
+@keyframes liquid-morph { 0%, 100% { border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; } 33% { border-radius: 63% 37% 45% 55% / 55% 62% 38% 45%; } 66% { border-radius: 38% 62% 56% 44% / 62% 38% 62% 38%; } }
+.scene { z-index: 1; }
+.liquid-defs { position: absolute; }
+
+/* Gooey cursor trail (pointer devices). */
+.liquid-cursor { position: fixed; inset: 0; z-index: 90; pointer-events: none; filter: url(#liquid-goo); transition: opacity .6s; }
+.liquid-cursor span { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; background: var(--iris); opacity: .55; }
+.liquid-cursor span:first-child { opacity: .8; }
+.liquid-ripple { position: fixed; z-index: 91; width: 14px; height: 14px; margin: -7px; border-radius: 50%; border: 1.5px solid #b6ffe0cc; pointer-events: none; animation: liquid-ripple .75s cubic-bezier(.2, .7, .3, 1) forwards; }
+@keyframes liquid-ripple { to { transform: scale(7); opacity: 0; border-width: .5px; } }
+
+/* Glass surfaces: rounded, iridescent edge, highlight that follows the pointer. */
+.small-control, .icon-button, .control-dock, .form-switcher, .world-controls select, .bottom-strip button, .tracking-button {
+  border-radius: 999px !important; transition: transform .45s var(--liquid-ease), background .35s, border-color .35s, box-shadow .35s;
+}
+.small-control, .control-dock, .form-switcher, .world-controls select {
+  background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), #3dffa22e, transparent 70%), linear-gradient(150deg, #143d2ecc, #0a2118d9) !important;
+  border: 1px solid var(--glass-edge) !important; color: #d2f7e4 !important; backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: inset 0 1px 0 #ffffff14, 0 10px 30px #04021266, 0 0 0 1px #3dffd00a;
+}
+.small-control:hover, .control-dock:hover, .form-switcher:hover { border-color: #9dffcf66 !important; box-shadow: inset 0 1px 0 #ffffff1f, 0 14px 40px #0402128a, 0 0 32px #3dffa22e; }
+.small-control:hover, .icon-button:hover, .bottom-strip button:hover { transform: translateY(-2px) scale(1.04); }
+.small-control:active, .icon-button:active, .bottom-strip button:active, .tracking-button:active, .dock-arrow:active { transform: scale(.94); transition-duration: .12s; }
+.small-control.enabled, .small-control[aria-pressed=true] { border-color: #3dffd066 !important; color: #d6ffe9 !important; box-shadow: inset 0 0 18px #3dffd01f, 0 0 26px #3dffd024; }
+.ai-wake-button { background: radial-gradient(120px circle at var(--mx, 50%) var(--my, 50%), #ffd23f40, transparent 70%), linear-gradient(120deg, #1d5a3acc, #0f3326dd) !important; border-color: #ffe27a4d !important; }
+.control-dock { padding-inline: 9px; }
+.control-dock::before { border-radius: 999px; background: conic-gradient(from var(--spin, 0deg), transparent 0 64%, #3dffd099 76%, #ffd23f99 86%, transparent 94%); }
+.form-switcher button { border-radius: 999px !important; transition: background .4s var(--liquid-ease), color .3s; }
+.form-switcher button[aria-pressed=true] { background: linear-gradient(120deg, #3dffd02e, #3dffa240) !important; color: #fff !important; box-shadow: inset 0 0 14px #3dffa233; }
+.icon-button { color: #c6f2dc; }
+.status-led { background: var(--aqua) !important; box-shadow: 0 0 12px var(--aqua) !important; }
+.orbit-pagination button span { border-radius: 999px; }
+.orbit-pagination button.selected span { background: var(--iris) !important; box-shadow: 0 0 12px #3dffa299; }
+
+/* Headline and brand take the aurora gradient. */
+.workspace-heading h1 { background: linear-gradient(100deg, #f2fff8 10%, var(--aqua) 38%, var(--violet) 58%, var(--magenta) 74%, #f2fff8 92%); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+.workspace-heading .eyebrow, .eyebrow { color: #a9d9c2; }
+.brand-mark { background: var(--iris); -webkit-background-clip: text; background-clip: text; color: transparent !important; font-weight: 500; }
+.version { border-color: #9dffcf40 !important; color: #bdeed4 !important; border-radius: 999px !important; padding-inline: 8px !important; }
+
+/* Panels: deep glass with a soft liquid edge. */
+.dialog, .assistant-panel {
+  background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 0%), #3dffa21f, transparent 60%), var(--glass) !important;
+  border: 1px solid var(--glass-edge) !important; border-radius: 30px !important; backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 40px 140px #010a0699, 0 0 80px #1fd98a1f, inset 0 1px 0 #ffffff12 !important;
+}
+.assistant-symbol { background: var(--iris) !important; color: #08241a !important; border-radius: 999px !important; }
+.assistant-composer { border-radius: 22px !important; border-color: #9dffcf33 !important; background: #081d15cc !important; }
+.assistant-composer button[type=submit], .setup-primary { border-radius: 999px !important; background: var(--iris) !important; color: #08241a !important; }
+.holographic-text { color: #eefff5; text-shadow: 0 0 22px #3dffa238; }
+
+/* Module cards ("slides"): soft squircle shells with an iridescent sheen that
+   follows the pointer and a liquid outline that flows around the edge. */
+.module-card {
+  border-radius: 38px !important; overflow: hidden; isolation: isolate;
+  background: radial-gradient(260px circle at var(--mx, 30%) var(--my, 0%), #ffffff14, transparent 60%), linear-gradient(155deg, #164633e6, #0b271cf0 52%, #0b2225f0) !important;
+  border: 1px solid #a8ffd830 !important; color: #eafff3 !important;
+  box-shadow: inset 0 1px 0 #ffffff1a, 0 24px 60px #010a068c, 0 0 46px #1fd98a14 !important;
+}
+.module-card::after { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--spin, 0deg), transparent 0 55%, #3dffd066 70%, #ffd23f66 82%, transparent 92%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: .55; transition: opacity .4s; animation: spin-border 7s linear infinite; pointer-events: none; }
+.module-card:hover::after, .module-card.is-active::after { opacity: 1; }
+.module-card::before { left: 12% !important; right: 12% !important; background: var(--iris) !important; opacity: .5 !important; }
+.module-card.is-active { border-color: #c8ffe659 !important; box-shadow: inset 0 1px 0 #ffffff24, 0 30px 70px #010a0699, 0 0 60px #3dffa22e !important; }
+.module-card:hover { border-color: #c8ffe666 !important; }
+.card-top .mono, .card-bottom { color: #a9d9c2 !important; }
+
+/* Hand cursor: liquid ring, dwell countdown and gesture label. */
+.hand-cursor > span { border-color: var(--aqua) !important; box-shadow: 0 0 22px #3dffd055, inset 0 0 12px #3dffa244 !important; }
+.hand-cursor > i { background: #fff !important; }
+.hand-cursor[data-point=true] > span { transform: scale(.55); background: #3dffd022; }
+.hand-cursor .dwell-ring { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; border-radius: 50%; opacity: calc(var(--dwell, 0) * 4); background: conic-gradient(var(--aqua) calc(var(--dwell, 0) * 360deg), transparent 0); -webkit-mask: radial-gradient(circle, transparent 19px, #000 20px); mask: radial-gradient(circle, transparent 19px, #000 20px); }
+.hand-cursor .gesture-label { position: absolute; left: 26px; top: -30px; font: 600 10px/1 ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; color: #eafff3; padding: 6px 10px; border-radius: 999px; background: #0f3326cc; border: 1px solid #3dffd055; opacity: 0; font-style: normal; }
+.hand-cursor.pulse .gesture-label { animation: gesture-pop 1.1s var(--liquid-ease); }
+.hand-cursor.pulse > span { animation: gesture-ring .6s ease-out; }
+@keyframes gesture-pop { 0% { opacity: 0; transform: translateY(6px) scale(.8); } 18% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes gesture-ring { 50% { transform: scale(1.8); box-shadow: 0 0 40px #3dffd0aa; } }
+
+@media (prefers-reduced-motion: reduce) { .liquid-aurora i { animation: none; } .liquid-cursor { display: none; } }
+@media (pointer: coarse) { .liquid-cursor { display: none; } }
+.boot { background: radial-gradient(ellipse at 50% 46%, #0f3a2a 0, #030f0a 62%) !important; }
+.boot-core i { border-color: #3dffa277 !important; }
+.boot-word, .boot strong { background: var(--iris); -webkit-background-clip: text; background-clip: text; color: transparent !important; }
+.dialog::before, .assistant-panel::before { display: none; }
+.dialog::after, .assistant-panel::after { background: var(--iris) !important; left: 18% !important; right: 18% !important; opacity: .7; }
+.dialog input, .dialog textarea, .dialog select, .knowledge input, .knowledge textarea { background: #0a241acc !important; border: 1px solid #9dffcf2e !important; border-radius: 16px !important; color: #ecfff5 !important; }
+.dialog input:focus, .dialog textarea:focus { border-color: #3dffd066 !important; box-shadow: 0 0 0 4px #3dffd014; outline: none; }
+.liquid-aurora { opacity: .95; }
+
+/* Module spheres: round glass bubbles riding on the 3D spheres around the orb. */
+.module-bubble {
+  width: 212px; height: 212px; border-radius: 50%; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; color: #effff6;
+  background: radial-gradient(circle at 34% 28%, #ffffff3d 0, #ffffff0f 18%, transparent 38%), radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 62%), radial-gradient(circle at 50% 50%, transparent 58%, #a8ffd826 70%, #3dffd033 100%);
+  box-shadow: inset 0 0 40px #3dffa226, inset -12px -18px 40px #010a068c, 0 0 46px color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid #c8ffe62e; transition: transform .5s var(--liquid-ease), box-shadow .4s, border-color .4s; animation: bubble-wobble 7s ease-in-out infinite;
+}
+.module-bubble:nth-child(n) { animation-delay: calc(var(--i, 0) * -1s); }
+.module-bubble:hover, .module-bubble.is-active { border-color: #e2fff166; box-shadow: inset 0 0 50px #3dffa23d, inset -12px -18px 40px #010a0680, 0 0 70px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 0 6px #3dffd00f; }
+.module-bubble:hover { transform: scale(1.06); }
+.module-bubble .bubble-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: #ffffff12; border: 1px solid #ffffff22; color: #fff; }
+.module-bubble .bubble-icon svg { width: 24px; height: 24px; }
+.module-bubble strong { font-size: 21px; font-weight: 500; letter-spacing: -.01em; }
+.module-bubble small { font: 9px/1 ui-monospace, monospace; letter-spacing: .2em; color: #b5e6cc; }
+.module-bubble.is-active small { color: #b9ffd9; }
+@keyframes bubble-wobble { 0%, 100% { border-radius: 50%; } 33% { border-radius: 52% 48% 50% 50% / 49% 52% 48% 51%; } 66% { border-radius: 48% 52% 51% 49% / 52% 48% 52% 48%; } }
+.liquid-ripple.shock { width: 30px; height: 30px; margin: -15px; border-width: 3px; border-color: #b8ff4acc; animation-duration: 1.1s; box-shadow: 0 0 40px #3dffa266; }

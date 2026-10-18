@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-// Browser-side client for the local NEXUS Windows bridge (`bridge/windowsBridge.js`).
+// Browser-side client for the local Zeno Windows bridge (`bridge/windowsBridge.js`).
 // The bridge runs on the user's own PC, on loopback, and requires a per-launch
 // token. Nothing here reaches the network except the loopback origin the user
 // pasted a token for. Connection state lives in this store; a hot `bridgeSignal`

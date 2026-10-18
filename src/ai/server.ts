@@ -1,5 +1,5 @@
 import { isModule } from './protocol';
-export type AIRequest = { messages: { role: 'user' | 'assistant'; text: string }[]; context: { module: string; description: string; connected: boolean } };
+export type AIRequest = { messages: { role: 'user' | 'assistant'; text: string }[]; context: { module: string; description: string; connected: boolean; companion?: string } };
 export function validateRequest(value: unknown): AIRequest | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Record<string, unknown>;
@@ -13,7 +13,8 @@ export function validateRequest(value: unknown): AIRequest | null {
   if (length > 24000 || messages.at(-1)?.role !== 'user') return null;
   const c = v.context as Record<string, unknown> | undefined;
   if (!c || (!isModule(c.module) && c.module !== 'orbit') || typeof c.description !== 'string' || c.description.length > 4000) return null;
-  return { messages, context: { module: String(c.module), description: c.description, connected: c.connected === true } };
+  if (c.companion !== undefined && (typeof c.companion !== 'string' || c.companion.length > 1500)) return null;
+  return { messages, context: { module: String(c.module), description: c.description, connected: c.connected === true, ...(c.companion ? { companion: c.companion } : {}) } };
 }
 export function localRequestAllowed(request: Request, mutation = false) {
   // Next's dev server may normalize request.url to localhost while the browser

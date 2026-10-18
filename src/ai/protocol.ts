@@ -36,7 +36,7 @@ export function matchCommand(text: string): Command | null {
   return matchWebsite(text.trim().replace(/^(?:hey\s+)?nexus[\s,:.!]*/i, '').replace(/[.!?]+$/, '').trim());
 }
 // "Open X" for a personal destination or a website. Anything else goes to the
-// model; NEXUS has no access to the computer's apps or settings.
+// model; Zeno has no access to the computer's apps or settings.
 export function matchWebsite(text: string): Command | null {
   const open = text.slice(0, 500).toLowerCase().match(/^(?:open|launch|start|go to|show|show me|visit|take me to) (?:the )?(.{1,500}?)(?: app| application| website| site)?$/);
   if (!open) return null;
@@ -54,7 +54,8 @@ export class EventDecoder {
     const lines = this.buffer.split('\n'); this.buffer = lines.pop() ?? '';
     if (!chunk && this.buffer.trim()) { lines.push(this.buffer); this.buffer = ''; }
     return lines.filter(l => l.trim()).map(line => {
-      const v = JSON.parse(line);
+      let v; try { v = JSON.parse(line); } catch { throw new Error('Zeno received a garbled response from the AI service. Please retry.'); }
+      if (!v || typeof v !== 'object') throw new Error('Unrecognized AI stream event.');
       if (v.type === 'text' && typeof v.text === 'string') return { type: 'text', text: v.text };
       if (v.type === 'done') return { type: 'done' };
       if (v.type === 'error' && typeof v.message === 'string') return { type: 'error', message: v.message };

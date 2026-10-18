@@ -42,3 +42,33 @@ test('spring settles exactly and has zero zero-input drift', () => {
   for (let i = 0; i < 600; i++) stepSpring(spring, 0, 1 / 60);
   assert.deepEqual(spring, { value: 0, velocity: 0 });
 });
+function pose(up: number[], thumbUp = false): Point[] {
+  const p = hand();
+  // Curl every finger not listed: tip folds back below its middle joint.
+  for (const tip of [8, 12, 16, 20]) if (!up.includes(tip)) p[tip] = { x: p[tip].x, y: .62, z: 0 };
+  if (thumbUp) { p[4] = { x: .47, y: .2, z: 0 }; p[5] = { x: .48, y: .52, z: 0 }; }
+  return p;
+}
+test('peace and thumbs up fire once after being held', () => {
+  const e = new GestureEngine(); const events = [];
+  for (let t = 0; t <= 1600; t += 100) events.push(e.update(pose([8, 12]), t)?.event);
+  assert.deepEqual(events.filter(Boolean), ['Peace']);
+  assert.equal(e.update(pose([8, 12]), 1700)?.gesture, 'Peace');
+  const t2 = new GestureEngine(); const fired = [];
+  for (let t = 0; t <= 1600; t += 100) fired.push(t2.update(pose([], true), t)?.event);
+  assert.deepEqual(fired.filter(Boolean), ['Thumbs up']);
+  assert.equal(new GestureEngine().update(pose([8]), 0)?.gesture, 'Point');
+});
+test('an open hand moved vertically swipes up or down', () => {
+  const e = new GestureEngine(); let last = null;
+  for (let i = 0; i < 6; i++) last = e.update(hand().map(p => ({ ...p, y: p.y - i * .04 })), 100 + i * 60)?.event ?? last;
+  assert.equal(last, 'Swipe up');
+});
+test('one-euro smoothing steadies jitter but follows fast moves', async () => {
+  const { OneEuro } = await import('../src/gestures/oneEuro');
+  const f = new OneEuro(); let out = 0;
+  for (let i = 0; i < 30; i++) out = f.filter(.5 + (i % 2 ? .004 : -.004), i * 16);
+  assert.ok(Math.abs(out - .5) < .003);
+  for (let i = 30; i < 40; i++) out = f.filter(.9, i * 16);
+  assert.ok(out > .85);
+});

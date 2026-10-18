@@ -19,3 +19,14 @@ test('forward and reverse use the same clock and settle exactly', () => {
 test('form envelopes stay finite and bounded through the journey', () => {
   for (let t = 0; t <= 8; t += .01) for (const v of Object.values(envelopes(t))) assert.ok(Number.isFinite(v) && v >= 0 && v <= 1);
 });
+test('surface sampling returns exactly the requested count with no near-duplicates', async () => {
+  const { poissonSelect } = await import('../src/embodiment/bake');
+  const c = new Float32Array(20000 * 3); let seed = 3; const r = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  for (let i = 0; i < 20000; i++) c.set([r() - .5, r() - .5, r() * .2], i * 3);
+  const picked = await poissonSelect(c, 3000);
+  assert.equal(picked.length, 3000); assert.equal(new Set(picked).size, 3000);
+});
+test('transition FX envelopes peak during ignition and the materialisation scan', () => {
+  assert.ok(envelopes(3.4).ignite > .9); assert.equal(envelopes(1).ignite, 0); assert.equal(envelopes(8).ignite, 0);
+  assert.equal(envelopes(3).scan, 0); assert.equal(envelopes(8).scan, 1);
+});

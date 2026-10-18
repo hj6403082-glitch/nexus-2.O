@@ -16,7 +16,7 @@ export function portfolioTotals(holdings: Holding[], quotes: Record<string, Quot
 export type PerformancePoint = { date: string; value: number; basis: number };
 // Portfolio performance is reconstructed from local daily snapshots: one point
 // per calendar day (the latest wins), oldest first, capped to a year. No
-// brokerage history is fetched; this is the record of what NEXUS has observed.
+// brokerage history is fetched; this is the record of what Zeno has observed.
 export function recordPerformance(history: PerformancePoint[], value: number, basis: number, at = new Date()): PerformancePoint[] {
   const date = at.toISOString().slice(0, 10);
   const prior = history.filter(p => typeof p.date === 'string' && Number.isFinite(p.value) && Number.isFinite(p.basis) && p.date !== date);
