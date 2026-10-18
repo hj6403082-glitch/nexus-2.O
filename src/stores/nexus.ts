@@ -49,4 +49,8 @@ export const useNexus = create<NexusState>((set, get) => ({
   log: message => set(s => ({ logs: [...s.logs.slice(-4), { id: Date.now() + Math.random(), time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message }] })),
 }));
 // Hot tracking data never causes React renders at camera frame rate.
+// Mouse drag of a module sphere (offset in screen fractions) and the last
+// double-click shockwave; read every frame by the spatial scene.
+export const dragSignal = { id: null as ModuleId | null, dx: 0, dy: 0, moved: false };
+export const shockSignal = { at: 0 };
 export const handSignal = { x: 0.5, y: 0.5, scale: 0, visible: false, pinching: false, zoom: 1, pointing: false, dwell: 0, pulse: 0, label: '' };

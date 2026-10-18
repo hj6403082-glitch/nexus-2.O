@@ -36,7 +36,7 @@ void main(){
   float b = pow(abs(sin((noise(p-vec2(disp,0.)) + noise(p*1.9))*3.14159 + t)),3.0);
   vec3 caustic = vec3(r, c, b);
   // Base cobalt, pushed toward cyan with thermal load.
-  vec3 tint = mix(vec3(0.34,0.24,0.86), vec3(0.16,0.78,0.86), uThermal);
+  vec3 tint = mix(vec3(0.10,0.62,0.36), vec3(0.62,0.86,0.20), uThermal);
   vec3 col = caustic * tint;
   // Soft shadow blooms under each panel: a bright, soft disc that darkens the
   // grid slightly at its rim (a contact shadow) and glows at its core.

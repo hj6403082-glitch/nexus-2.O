@@ -67,31 +67,31 @@ void main(){
  vec3 key=normalize(vec3(-.55+sin(uClock*.21)*.12,.7,1.));float facing=clamp(dot(nn,key),0.,1.);
  float fill=clamp(dot(nn,normalize(vec3(.8,-.1,.7))),0.,1.);
  float ao=mix(1.,.08+.92*pow(aAO,1.6),presence*.9+.1);
- vec3 blue=mix(vec3(.02,.06,.14),vec3(.40,.74,.95),pow(facing,1.1))+vec3(.05,.10,.20)*fill;
+ vec3 blue=mix(vec3(.01,.08,.05),vec3(.36,.95,.68),pow(facing,1.1))+vec3(.04,.15,.10)*fill;
  blue+=vec3(.10,.14,.16)*pow(facing,18.); // soft specular sheen
  blue*=ao;
- blue+=vec3(.10,.26,.40)*pow(1.-abs(nn.z),3.)*presence; // rim
+ blue+=vec3(.14,.42,.26)*pow(1.-abs(nn.z),3.)*presence; // rim
  float eye=step(.5,aSeed-1.); // last two particles have an explicit eye flag
  float blink=1.-step(.965,fract(uClock/4.7+.3))*presence;
- if(eye>.5)blue=mix(blue,vec3(.7,.88,1.)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime)*blink);
+ if(eye>.5)blue=mix(blue,vec3(.85,1.,.8)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime)*blink);
  // Glowing irises with dark pupils that glance around (uEye) and close in blinks.
  vec3 look=normalize(vec3(uEye*.35,1.));
  for(int k=0;k<2;k++){vec3 q=position-vec3(k==0?.115:-.115,.752,.262);
   if(length(q/vec3(.052,.04,.045))<1.12&&position.z>.24&&eye<.5){float d=dot(normalize(q),look);
-   vec3 iris=mix(vec3(.10,.55,.95),vec3(.45,.95,1.25),smoothRange(.86,.93,d))*(.7+uFlare*.6);
+   vec3 iris=mix(vec3(.55,.95,.15),vec3(1.05,1.2,.45),smoothRange(.86,.93,d))*(.7+uFlare*.6);
    vec3 c=mix(vec3(.22,.30,.36),iris,smoothRange(.78,.84,d));c=mix(c,vec3(.01,.02,.04),smoothRange(.95,.97,d));
    blue=mix(blue,c,presence*blink);}}
  // Lips read as a softer, paler material and brighten as they move.
  float lipTone=(1.-smoothRange(.65,1.,length(vec2(position.x/.11,(position.y-.488)/.05))))*step(.25,position.z);
- blue=mix(blue,vec3(.50,.58,.92)*(.45+.75*facing)*ao,lipTone*.5)+lipTone*uJaw*vec3(.10,.22,.34);
+ blue=mix(blue,vec3(.55,.95,.72)*(.45+.75*facing)*ao,lipTone*.5)+lipTone*uJaw*vec3(.12,.34,.20);
  // A faint holographic scan line drifts up the face while it is present.
- blue+=vec3(.08,.2,.28)*pow(.5+.5*sin(position.y*7.-uClock*2.2),48.)*presence;
+ blue+=vec3(.10,.30,.18)*pow(.5+.5*sin(position.y*7.-uClock*2.2),48.)*presence;
  vColor=mix(aColor,blue,body);
  // Energy: in-flight particles run hot cyan, the forming front flares, the
  // core flashes white and dispersing motes glow gold. Values above 1 bloom.
  float heat=sin(gather*3.14159265)*(1.-body);
  float edge=sin(body*3.14159265);
- vColor+=vec3(.35,.75,1.15)*(heat*.6+edge*.85)*(1.-uReturn*.5);
+ vColor+=vec3(.35,1.1,.65)*(heat*.6+edge*.85)*(1.-uReturn*.5);
  vColor+=vec3(1.1,.85,.5)*uReturn*(edge*.7+heat*.35);
  vColor+=vec3(.9,1.,1.1)*coreE*(.6+beat*1.4);
  vVisibility=step(.08,uTime)*smoothRange(.45+delay,.75+delay,uTime);

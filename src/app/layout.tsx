@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: 'Zeno', statusBarStyle: 'black-translucent' },
   formatDetection: { telephone: false },
 };
-export const viewport: Viewport = { themeColor: '#06041a', colorScheme: 'dark', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
+export const viewport: Viewport = { themeColor: '#030f0a', colorScheme: 'dark', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body>{children}</body></html>;
 }

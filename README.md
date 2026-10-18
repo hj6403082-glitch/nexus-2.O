@@ -43,6 +43,8 @@ Use Ask Zeno to type or enable voice. Direct module, orbit and transformation co
 
 **The core.** In spatial mode a living energy sphere sits at the centre of the orbit. It breathes while idle, swirls while Zeno thinks, ripples with the voice while it speaks and swells toward your pointer. Click it to talk to Zeno.
 
+**Spheres.** The modules are glass spheres that float around the core as if tied to it by invisible strings. They drift away from your pointer, and you can drag one and let go to watch it swing back. Double-click empty space to send a shockwave that flings them all outward. Zeno now talks casually, like a person rather than an assistant, and the theme is a lively green.
+
 ## Modules
 
 - Projects and Calendar store entries in this browser. Projects can attach local images and videos in IndexedDB. They are not synced cloud accounts.

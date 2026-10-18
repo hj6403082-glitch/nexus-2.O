@@ -7,6 +7,7 @@ import { fftSignal } from '@/ai/audio';
 import { sfx } from '@/animations/sfx';
 import { useAssistant, voiceSignal } from '@/stores/assistant';
 import { formSignal } from '@/stores/form';
+import { shockSignal } from '@/stores/nexus';
 
 // The living core at the centre of the orbit: a noise-displaced energy sphere
 // inside a slowly turning lattice dome. It breathes while idle, swirls while
@@ -56,9 +57,9 @@ export function CoreOrb() {
   const pointer = useRef(new THREE.Vector3(0, 0, 1)), hovered = useRef(false);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 }, uLevel: { value: 0 }, uLow: { value: 0 }, uHigh: { value: 0 }, uThink: { value: 0 }, uHover: { value: 0 }, uFade: { value: 1 },
-    uPointer: { value: new THREE.Vector3(0, 0, 1) }, uColor: { value: new THREE.Color('#62e6ff') }, uHot: { value: new THREE.Color('#f0dcff') },
+    uPointer: { value: new THREE.Vector3(0, 0, 1) }, uColor: { value: new THREE.Color('#3dffb0') }, uHot: { value: new THREE.Color('#f6ffd6') },
   }), []);
-  const domeGeometry = useMemo(() => new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(2.55, 3)), []);
+  const domeGeometry = useMemo(() => new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(2.0, 3)), []);
   useFrame((state, dt) => {
     if (!group.current) return;
     const t = Math.min(dt, .05), a = useAssistant.getState();
@@ -76,7 +77,9 @@ export function CoreOrb() {
     const fade = 1 - formSignal.dissolve;
     uniforms.uFade.value = fade * (.38 + awake * .62);
     group.current.visible = fade > .01;
-    const pulse = 1 + uniforms.uLevel.value * .12 + Math.sin(uniforms.uTime.value * 1.1) * .02;
+    const since = (performance.now() - shockSignal.at) / 1000, blast = shockSignal.at && since < 1.2 ? Math.sin(Math.min(1, since / 1.2) * Math.PI) * (1 - since / 1.2) : 0;
+    uniforms.uLevel.value = Math.max(uniforms.uLevel.value, blast);
+    const pulse = 1 + blast * .25 + uniforms.uLevel.value * .12 + Math.sin(uniforms.uTime.value * 1.1) * .02;
     group.current.scale.setScalar((1 + awake * .18 + uniforms.uHover.value * .06) * pulse);
     group.current.position.y = .6 + Math.sin(state.clock.elapsedTime * .6) * .08;
     if (dome.current) {
@@ -92,10 +95,10 @@ export function CoreOrb() {
       onPointerOut={() => { hovered.current = false; document.body.style.cursor = ''; }}
       onPointerMove={e => { if (group.current) pointer.current.copy(group.current.worldToLocal(e.point.clone())).normalize(); }}
       onClick={e => { e.stopPropagation(); sfx.touch(); useAssistant.getState().wake(); }}>
-      <icosahedronGeometry args={[1.9, 64]} />
+      <icosahedronGeometry args={[1.45, 64]} />
       <shaderMaterial vertexShader={vertex} fragmentShader={fragment} uniforms={uniforms} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
-    <lineSegments ref={dome} geometry={domeGeometry}><lineBasicMaterial color="#a98dff" transparent opacity={.1} depthWrite={false} blending={THREE.AdditiveBlending} /></lineSegments>
-    <mesh ref={halo} scale={3.2}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#6a45e0" transparent opacity={.06} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
+    <lineSegments ref={dome} geometry={domeGeometry}><lineBasicMaterial color="#b8ff4a" transparent opacity={.1} depthWrite={false} blending={THREE.AdditiveBlending} /></lineSegments>
+    <mesh ref={halo} scale={2.5}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#16a866" transparent opacity={.06} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
   </group>;
 }

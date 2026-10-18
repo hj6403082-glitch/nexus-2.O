@@ -54,5 +54,7 @@ export const sfx = {
   // Dispersal: a falling rush and a scatter of glints.
   disperse() { whoosh(0, 2.2, 4000, 300, .45); for (let i = 0; i < 18; i++) { const f = 1800 + Math.random() * 3200; tone('sine', f, f * .98, Math.random() * 1.6, .35, .03, .005, 1); } },
   // Orb interaction.
+  // A double-click shockwave: a soft thump and an outward rush.
+  shock() { tone('sine', 120, 38, 0, .9, .6, .008, .4); whoosh(0, .9, 600, 4200, .35); },
   touch() { tone('sine', 660, 990, 0, .35, .07, .005, .8); tone('sine', 1320, 1320, .05, .5, .03, .005, 1); },
 };

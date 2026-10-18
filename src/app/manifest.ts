@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Gesture-driven spatial operating system with a local AI brain.',
     start_url: '/?source=app', scope: '/',
     display: 'standalone', display_override: ['window-controls-overlay', 'standalone'],
-    orientation: 'any', background_color: '#06041a', theme_color: '#06041a', categories: ['productivity', 'utilities'],
+    orientation: 'any', background_color: '#030f0a', theme_color: '#030f0a', categories: ['productivity', 'utilities'],
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
