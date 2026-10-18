@@ -8,3 +8,6 @@ out/
 test-results/
 playwright-report/
 .nexus-cache/
+
+# The owner's private Zeno profile (see zeno-profile.example.json)
+zeno-profile.json

@@ -80,7 +80,7 @@ function since(ms: number) {
 export function companionNotes(memory: Memory, now: Date, mood: Mood) {
   const when = `${now.toLocaleDateString('en-US', { weekday: 'long' })} ${partOfDay(now)}, ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
   const parts = [
-    memory.name ? `The user's name is ${memory.name}.` : "You don't know the user's name yet; if it comes up naturally, you can ask.",
+    memory.name ? `The user's name is ${memory.name}; call them ${memory.name}.` : "You don't know the user's name yet; if it comes up naturally, you can ask.",
     memory.facts.length ? `Things they've told you: ${memory.facts.slice(-12).join('; ')}.` : '',
     `It's ${when} for them.`,
     memory.lastChatAt ? `You last talked ${since(now.getTime() - memory.lastChatAt)}; this is conversation turn ${memory.chats + 1} overall.` : 'This is your first conversation.',
@@ -95,10 +95,26 @@ export function greeting(memory: Memory, now: Date) {
   const part = partOfDay(now), who = memory.name ? `, ${memory.name}` : '';
   const away = memory.lastChatAt ? now.getTime() - memory.lastChatAt : 0;
   const eyebrow = part === 'night' ? 'LATE NIGHT' : `GOOD ${part.toUpperCase()}`;
-  if (!memory.lastChatAt) return { eyebrow, title: `Hey${who}, I'm Zeno.`, line: "Ask me anything, tell me about yourself, or just say hi. I'll remember what matters." };
+  if (!memory.lastChatAt) return { eyebrow, title: memory.name ? `Hey ${memory.name}, I'm Zeno.` : "Hey, I'm Zeno.", line: "Ask me anything, tell me about yourself, or just say hi. I'll remember what matters." };
   if (away > 3 * 86400000) return { eyebrow, title: `Hey${who}, long time no see!`, line: "I missed having someone to talk to. What've you been up to?" };
   if (part === 'night') return { eyebrow, title: `Still up${who}?`, line: "I'm here. What's keeping you busy?" };
   return { eyebrow, title: `${part === 'morning' ? 'Morning' : part === 'afternoon' ? 'Hey' : 'Evening'}${who}!`, line: away > 6 * 3600000 ? 'Good to see you again. What are we getting into?' : "What's on your mind?" };
+}
+
+// The owner's profile file: { "name": "...", "facts": ["I ...", ...] }.
+export type Profile = { name: string | null; facts: string[] };
+export function parseProfile(value: unknown): Profile {
+  const v = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const name = typeof v.name === 'string' && v.name.trim() ? v.name.trim().slice(0, 40) : null;
+  const facts = Array.isArray(v.facts) ? v.facts.filter((f): f is string => typeof f === 'string' && !!f.trim()).map(f => tidy(f).slice(0, 200)).slice(0, MAX_FACTS) : [];
+  return { name, facts };
+}
+// The profile is the owner's own word, so its name wins and its facts are
+// always kept; what Zeno learned in conversation stays alongside them.
+export function applyProfile(memory: Memory, profile: Profile): Memory {
+  if (!profile.name && !profile.facts.length) return memory;
+  const learned = memory.facts.filter(f => !profile.facts.some(p => p.toLowerCase() === f.toLowerCase()));
+  return { ...memory, name: profile.name ?? memory.name, facts: [...profile.facts, ...learned].slice(0, MAX_FACTS) };
 }
 
 export function loadMemory(): Memory {

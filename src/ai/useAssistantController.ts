@@ -8,7 +8,7 @@ import { EventDecoder, matchCommand, type StreamEvent, type Turn } from './proto
 import { executeCommand } from './commands';
 import { recognitionConstructor, type Recognition } from './speech';
 import { CinematicSpeaker } from './voice';
-import { companionNotes, learn, loadMemory, readMood, saveMemory } from './companion';
+import { applyProfile, companionNotes, learn, loadMemory, parseProfile, readMood, saveMemory } from './companion';
 export function useAssistantController() {
   const request = useRef<AbortController | null>(null), generation = useRef(0);
   const speaker = useRef<CinematicSpeaker | null>(null), recognition = useRef<Recognition | null>(null);
@@ -164,6 +164,7 @@ export function useAssistantController() {
     // neural voice so it is ready by the time Zeno first speaks.
     // Zeno remembers you and your recent conversation across restarts.
     useAssistant.setState({ memory: loadMemory() });
+    void fetch('/api/profile', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(data => { if (!data) return; const memory = applyProfile(useAssistant.getState().memory, parseProfile(data)); useAssistant.setState({ memory }); saveMemory(memory); }).catch(() => { /* no profile */ });
     try {
       const saved = JSON.parse(localStorage.getItem('zeno-conversation') || '[]');
       if (Array.isArray(saved) && !useAssistant.getState().messages.length) useAssistant.setState({ messages: saved.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string' && m.text && typeof m.id === 'string').slice(-30).map(m => ({ id: m.id, role: m.role, text: m.text.slice(0, 6000), createdAt: Number(m.createdAt) || 0 })) });

@@ -33,3 +33,12 @@ test('companion notes are accepted as bounded optional context', () => {
   assert.equal(validateRequest({ messages: [{ role: 'user', text: 'hi' }], context: { ...context, companion: 'x'.repeat(1501) } }), null);
   assert.equal(validateRequest({ messages: [{ role: 'user', text: 'hi' }], context })?.context.companion, undefined);
 });
+test('the owner profile seeds memory and survives what Zeno learns', async () => {
+  const { applyProfile, parseProfile } = await import('../src/ai/companion');
+  const profile = parseProfile({ name: 'Boss', facts: ['I love robotics.', 42, '  '] });
+  assert.deepEqual(profile, { name: 'Boss', facts: ['I love robotics'] });
+  const memory = applyProfile({ name: 'Sam', facts: ['I love F1', 'i love robotics'], lastChatAt: 5, chats: 2 }, profile);
+  assert.deepEqual(memory, { name: 'Boss', facts: ['I love robotics', 'I love F1'], lastChatAt: 5, chats: 2 });
+  assert.match(companionNotes(memory, new Date(2026, 9, 18, 9), null), /call them Boss/);
+  assert.equal(applyProfile(memory, parseProfile(null)), memory);
+});
