@@ -7,7 +7,7 @@ const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@';
 // click skips it; reduced motion skips it entirely.
 export function BootSequence() {
   const [stage, setStage] = useState<'hidden' | 'run' | 'exit'>('hidden');
-  const [word, setWord] = useState('NEXUS'), [online, setOnline] = useState(0);
+  const [word, setWord] = useState('ZENO'), [online, setOnline] = useState(0);
   useEffect(() => {
     let seen = false; try { seen = sessionStorage.getItem('nexus-booted') === '1'; sessionStorage.setItem('nexus-booted', '1'); } catch { /* Storage blocked: still boot. */ }
     if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -15,8 +15,8 @@ export function BootSequence() {
     const start = performance.now(); let frame = 0;
     const decode = () => {
       const t = (performance.now() - start) / 1100;
-      setWord('NEXUS'.split('').map((c, i) => t * 6 > i + 1.4 ? c : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]).join(''));
-      if (t < 1) frame = requestAnimationFrame(decode); else setWord('NEXUS');
+      setWord('ZENO'.split('').map((c, i) => t * 6 > i + 1.4 ? c : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]).join(''));
+      if (t < 1) frame = requestAnimationFrame(decode); else setWord('ZENO');
     };
     frame = requestAnimationFrame(decode);
     const timers = LINES.map((_, i) => setTimeout(() => setOnline(i + 1), 320 + i * 260));

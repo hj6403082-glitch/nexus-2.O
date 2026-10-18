@@ -10,7 +10,7 @@ import { formSignal } from '@/stores/form';
 
 // The living core at the centre of the orbit: a noise-displaced energy sphere
 // inside a slowly turning lattice dome. It breathes while idle, swirls while
-// NEXUS thinks, and its surface ripples with the voice while NEXUS speaks.
+// Zeno thinks, and its surface ripples with the voice while Zeno speaks.
 // Hover makes it swell toward the pointer; a click wakes the assistant.
 const noise = `
 vec3 m289(vec3 x){return x-floor(x*(1./289.))*289.;}vec4 m289(vec4 x){return x-floor(x*(1./289.))*289.;}
@@ -56,7 +56,7 @@ export function CoreOrb() {
   const pointer = useRef(new THREE.Vector3(0, 0, 1)), hovered = useRef(false);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 }, uLevel: { value: 0 }, uLow: { value: 0 }, uHigh: { value: 0 }, uThink: { value: 0 }, uHover: { value: 0 }, uFade: { value: 1 },
-    uPointer: { value: new THREE.Vector3(0, 0, 1) }, uColor: { value: new THREE.Color('#3fd6ff') }, uHot: { value: new THREE.Color('#d8f6ff') },
+    uPointer: { value: new THREE.Vector3(0, 0, 1) }, uColor: { value: new THREE.Color('#62e6ff') }, uHot: { value: new THREE.Color('#f0dcff') },
   }), []);
   const domeGeometry = useMemo(() => new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(2.55, 3)), []);
   useFrame((state, dt) => {
@@ -72,7 +72,7 @@ export function CoreOrb() {
     uniforms.uHover.value = stepSpring(hover.current, hovered.current ? 1 : 0, t, 140, 18);
     uniforms.uPointer.value.lerp(pointer.current, .15);
     const awake = stepSpring(wake.current, a.visible || a.status !== 'Idle' ? 1 : 0, t, 40, 13);
-    // The core belongs to spatial mode: it fades as NEXUS takes human form.
+    // The core belongs to spatial mode: it fades as Zeno takes human form.
     const fade = 1 - formSignal.dissolve;
     uniforms.uFade.value = fade * (.38 + awake * .62);
     group.current.visible = fade > .01;
@@ -95,7 +95,7 @@ export function CoreOrb() {
       <icosahedronGeometry args={[1.9, 64]} />
       <shaderMaterial vertexShader={vertex} fragmentShader={fragment} uniforms={uniforms} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
     </mesh>
-    <lineSegments ref={dome} geometry={domeGeometry}><lineBasicMaterial color="#5fe0ff" transparent opacity={.1} depthWrite={false} blending={THREE.AdditiveBlending} /></lineSegments>
-    <mesh ref={halo} scale={3.2}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#1a8fd0" transparent opacity={.06} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
+    <lineSegments ref={dome} geometry={domeGeometry}><lineBasicMaterial color="#a98dff" transparent opacity={.1} depthWrite={false} blending={THREE.AdditiveBlending} /></lineSegments>
+    <mesh ref={halo} scale={3.2}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#6a45e0" transparent opacity={.06} side={THREE.BackSide} depthWrite={false} blending={THREE.AdditiveBlending} /></mesh>
   </group>;
 }

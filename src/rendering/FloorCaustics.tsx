@@ -36,7 +36,7 @@ void main(){
   float b = pow(abs(sin((noise(p-vec2(disp,0.)) + noise(p*1.9))*3.14159 + t)),3.0);
   vec3 caustic = vec3(r, c, b);
   // Base cobalt, pushed toward cyan with thermal load.
-  vec3 tint = mix(vec3(0.16,0.40,0.78), vec3(0.10,0.72,0.86), uThermal);
+  vec3 tint = mix(vec3(0.34,0.24,0.86), vec3(0.16,0.78,0.86), uThermal);
   vec3 col = caustic * tint;
   // Soft shadow blooms under each panel: a bright, soft disc that darkens the
   // grid slightly at its rim (a contact shadow) and glows at its core.
@@ -70,7 +70,7 @@ export function FloorCaustics({ time }: { time: React.RefObject<number> }) {
     u.uTime.value = time.current;
     u.uAmbient.value = ambientSignal.level;
     u.uThermal.value = thermalSignal.load;
-    // Fade the caustics out while NEXUS dissolves into the human form.
+    // Fade the caustics out while Zeno dissolves into the human form.
     u.uFade.value = 1 - formSignal.dissolve;
     if (mesh.current) mesh.current.visible = formSignal.dissolve < 0.98;
     // Project each card's world position onto the floor plane (XZ → plane UV).

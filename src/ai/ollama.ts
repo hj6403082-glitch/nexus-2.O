@@ -2,7 +2,7 @@ import type { AIRequest } from './server';
 import { validateCommand, type StreamEvent } from './protocol';
 import { systemPrompt } from './persona';
 export const aiProvider = () => process.env.AI_PROVIDER === 'grok' ? 'grok' : process.env.AI_PROVIDER === 'gemini' ? 'gemini' : process.env.AI_PROVIDER === 'ollama' ? 'ollama' : process.env.XAI_API_KEY ? 'grok' : process.env.GEMINI_API_KEY ? 'gemini' : 'ollama';
-// Ollama listens on this computer. OLLAMA_URL is NEXUS's own override; Ollama's
+// Ollama listens on this computer. OLLAMA_URL is Zeno's own override; Ollama's
 // OLLAMA_HOST is a bind address (often 0.0.0.0) and is deliberately not reused.
 export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 export type OllamaState = 'offline' | 'no-model' | 'model-missing' | 'ready';
@@ -55,12 +55,12 @@ async function readStatus(): Promise<OllamaStatus> {
   } catch {
     return { configured: false, model: wanted, wanted, models: [], provider: 'ollama', state: 'offline', message: 'Ollama is not running on this computer. Open the Ollama app (it starts automatically after install), then check the connection. No API key is needed.' };
   }
-  if (!models.length) return { configured: false, model: wanted || 'qwen3:1.7b', wanted, models, provider: 'ollama', state: 'no-model', message: 'Ollama is running but has no local model yet. Download one below; NEXUS stays usable for module commands meanwhile.' };
+  if (!models.length) return { configured: false, model: wanted || 'qwen3:1.7b', wanted, models, provider: 'ollama', state: 'no-model', message: 'Ollama is running but has no local model yet. Download one below; Zeno stays usable for module commands meanwhile.' };
   const exact = resolveModel(models, wanted);
   if (exact) return { configured: true, model: exact, wanted, models, provider: 'ollama', state: 'ready', message: `Local Ollama · ${exact}` };
   // The configured model is missing but another one is installed: keep the brain
   // working on what is there rather than failing every question.
-  return { configured: true, model: models[0], wanted, models, provider: 'ollama', state: 'model-missing', message: `${wanted} is not downloaded, so NEXUS is using ${models[0]}. Download ${wanted} below to switch.` };
+  return { configured: true, model: models[0], wanted, models, provider: 'ollama', state: 'model-missing', message: `${wanted} is not downloaded, so Zeno is using ${models[0]}. Download ${wanted} below to switch.` };
 }
 // Older Ollama builds ignore `think: false`, so reasoning models can still emit
 // <think>…</think>. Strip it across arbitrary chunk boundaries.
@@ -80,7 +80,7 @@ export class ThinkFilter {
   }
   flush() { const rest = this.inside ? '' : this.carry; this.carry = ''; return rest; }
 }
-const friendlyModelError = (text: string) => /memory|cuda|out of|alloc/i.test(text) ? 'The local model ran out of memory. Close some apps or choose a smaller model with OLLAMA_MODEL.' : /not found|pull/i.test(text) ? 'That Ollama model is not downloaded. Download it from Ask NEXUS, then retry.' : 'Ollama reported a model error. Check the model and available memory, then retry.';
+const friendlyModelError = (text: string) => /memory|cuda|out of|alloc/i.test(text) ? 'The local model ran out of memory. Close some apps or choose a smaller model with OLLAMA_MODEL.' : /not found|pull/i.test(text) ? 'That Ollama model is not downloaded. Download it from Ask Zeno, then retry.' : 'Ollama reported a model error. Check the model and available memory, then retry.';
 async function startChat(body: Record<string, unknown>, signal: AbortSignal) {
   try { return await fetch(`${ollamaUrl()}/api/chat`, { method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
   catch (error) { if (signal.aborted) throw error; throw new Error('Ollama stopped responding. Make sure the Ollama app is running, then retry.'); }
@@ -105,7 +105,7 @@ export async function* streamOllama(input: AIRequest, signal: AbortSignal): Asyn
   if (response.status === 400 && !noTools.has(status.model)) { noTools.add(status.model); await response.body?.cancel().catch(() => {}); response = await startChat(base, signal); }
   if (!response.ok || !response.body) {
     const detail = await response.text().catch(() => '');
-    throw new Error(response.status === 404 ? 'That Ollama model is not downloaded. Download it from Ask NEXUS, then retry.' : response.status >= 500 ? friendlyModelError(detail) : 'Ollama could not start the response. Check that the selected model supports chat.');
+    throw new Error(response.status === 404 ? 'That Ollama model is not downloaded. Download it from Ask Zeno, then retry.' : response.status >= 500 ? friendlyModelError(detail) : 'Ollama could not start the response. Check that the selected model supports chat.');
   }
   const reader = response.body.getReader(), decoder = new TextDecoder(), think = new ThinkFilter();
   let buffer = '', done = false, commandSent = false, any = false;

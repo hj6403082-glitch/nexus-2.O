@@ -4,9 +4,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 let pulling = false;
 // Downloads a local Ollama model with streamed progress, so the AI brain can be
-// set up from inside NEXUS without a terminal.
+// set up from inside Zeno without a terminal.
 export async function POST(request: Request) {
-  if (!localRequestAllowed(request, true)) return Response.json({ error: 'Only same-origin requests to this local NEXUS instance are allowed.' }, { status: 403 });
+  if (!localRequestAllowed(request, true)) return Response.json({ error: 'Only same-origin requests to this local Zeno instance are allowed.' }, { status: 403 });
   if (aiProvider() !== 'ollama') return Response.json({ error: 'Model downloads are only for the local Ollama provider.' }, { status: 409 });
   let body: { model?: unknown };
   try { body = await readBoundedJson(request, 2000); } catch { return Response.json({ error: 'Invalid request.' }, { status: 400 }); }

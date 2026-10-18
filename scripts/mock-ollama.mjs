@@ -1,4 +1,4 @@
-// Protocol-compatible stand-in for Ollama, for exercising NEXUS's AI-brain
+// Protocol-compatible stand-in for Ollama, for exercising Zeno's AI-brain
 // paths (status, streaming, tool calls, model download, failures) on machines
 // without a real model. It does not generate real answers.
 //   node scripts/mock-ollama.mjs            # starts with no models installed

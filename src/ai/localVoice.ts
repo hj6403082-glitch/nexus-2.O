@@ -1,5 +1,5 @@
-// Local neural voice for NEXUS: Kokoro-82M (Apache-2.0) running inside the
-// NEXUS engine on this computer — a natural human voice with no account, key
+// Local neural voice for Zeno: Kokoro-82M (Apache-2.0) running inside the
+// Zeno engine on this computer — a natural human voice with no account, key
 // or per-use cost. The model (about 90 MB) downloads once on first use and is
 // cached under .nexus-cache; voices ship with the kokoro-js package. Until it
 // is ready, or if it cannot load, the client keeps speaking with the browser's

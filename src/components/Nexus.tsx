@@ -26,6 +26,7 @@ import { AppShell } from './AppShell';
 import { Ambience } from './Ambience';
 import { BootSequence } from './BootSequence';
 import { FormFX } from './FormFX';
+import { LiquidLayer } from './LiquidLayer';
 import { useTransitionSound } from '@/hooks/useTransitionSound';
 const Scene = dynamic(() => import('@/rendering/SpatialScene'), { ssr: false });
 class RenderBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -40,8 +41,16 @@ function FlatOrbit() {
 }
 function HandCursor() {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { let frame = 0; const draw = () => { if (ref.current) { ref.current.style.transform = `translate(${handSignal.x * innerWidth}px, ${handSignal.y * innerHeight}px)`; ref.current.style.opacity = handSignal.visible ? '1' : '0'; ref.current.dataset.pinch = String(handSignal.pinching); } frame = requestAnimationFrame(draw); }; frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame); }, []);
-  return <div ref={ref} className="hand-cursor" aria-hidden="true"><span /><i /></div>;
+  const label = useRef<HTMLElement>(null);
+  useEffect(() => { let frame = 0, shown = 0; const draw = () => {
+    if (ref.current) {
+      const el = ref.current; el.style.transform = `translate(${handSignal.x * innerWidth}px, ${handSignal.y * innerHeight}px)`; el.style.opacity = handSignal.visible ? '1' : '0';
+      el.dataset.pinch = String(handSignal.pinching); el.dataset.point = String(handSignal.pointing); el.style.setProperty('--dwell', handSignal.dwell.toFixed(3));
+      // Each recognised gesture flashes its name beside the cursor with a ripple.
+      if (handSignal.pulse !== shown) { shown = handSignal.pulse; if (label.current) label.current.textContent = handSignal.label; el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+    }
+    frame = requestAnimationFrame(draw); }; frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame); }, []);
+  return <div ref={ref} className="hand-cursor" aria-hidden="true"><span /><i /><b className="dwell-ring" /><em className="gesture-label" ref={label} /></div>;
 }
 export function Nexus() {
   const [ready, setReady] = useState(false);
@@ -52,12 +61,12 @@ export function Nexus() {
   const gaze = useGazeTracking();
   const formPhase = useForm(s => s.phase);
   const aiLive = useAssistant(s => s.visible || s.status === 'Thinking' || s.status === 'Streaming' || s.status === 'Speaking');
-  // Gaze tracking only makes sense while NEXUS is embodied; stop it otherwise.
+  // Gaze tracking only makes sense while Zeno is embodied; stop it otherwise.
   useEffect(() => { if (formPhase === 'NORMAL') gaze.stop(); }, [formPhase, gaze]);
   useEffect(() => {
     try { const canvas = document.createElement('canvas'); if (!canvas.getContext('webgl2')) useNexus.setState({ renderer: 'fallback', gpu: 'Unavailable' }); }
     catch { useNexus.setState({ renderer: 'fallback', gpu: 'Unavailable' }); }
-    useNexus.getState().log('NEXUS 01 · spatial core initialized'); useNexus.getState().log('Orbit locked · input controls ready');
+    useNexus.getState().log('ZENO 01 · spatial core initialized'); useNexus.getState().log('Orbit locked · input controls ready');
     const query = matchMedia('(prefers-reduced-motion: reduce)');
     const reduced = () => { if (query.matches) useNexus.setState({ drift: false }); }; reduced(); query.addEventListener('change', reduced);
     setReady(true); return () => query.removeEventListener('change', reduced);
@@ -67,5 +76,5 @@ export function Nexus() {
   // module morph stands down until the user exits it.
   useEffect(() => useNexus.subscribe((s, prev) => { if (s.expanded !== prev.expanded && !useProject.getState().focused) useWorld.getState().applyModule(s.expanded); }), []);
   const tracking = () => { const status = useNexus.getState().tracking; if (['loading', 'searching', 'tracking'].includes(status)) stop(); else void start(); };
-  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''} ${aiLive ? 'ai-live' : ''}`}><AppShell /><div className="titlebar-drag" aria-hidden="true" /><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><Ambience /><FormFX /><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} gaze={gaze} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><BootSequence /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
+  return <MotionConfig reducedMotion="user"><main className={`nexus ${expanded ? 'has-panel' : ''} ${formPhase !== 'NORMAL' ? 'form-embodied' : ''} ${inProject ? 'in-project' : ''} ${aiLive ? 'ai-live' : ''}`}><AppShell /><div className="titlebar-drag" aria-hidden="true" /><LiquidLayer /><div className="atmospheric-light" aria-hidden="true" /><div className="scene" aria-label="Spatial module orbit">{ready && (renderer === 'fallback' ? <FlatOrbit /> : <RenderBoundary fallback={<FlatOrbit />}><Scene /></RenderBoundary>)}</div><Ambience /><FormFX /><div className="scene-vignette" aria-hidden="true" /><WakeWave /><Hud onTracking={tracking} onAudio={() => void toggleAudio()} onAI={() => useAssistant.getState().wake()} /><FormControls controller={assistant} gaze={gaze} /><WorldControls /><ProjectWorldBanner /><Presentation /><HandCursor /><AnimatePresence>{pinned && formPhase === 'HUMANOID_ACTIVE' && !help && !launcher && <ModulePanel key="pinned" pinned />}{expanded && !presenting && !help && !launcher && <ModulePanel key="module" />}{help && <HelpPanel key="help" />}{launcher && <Launcher key="launcher" />}</AnimatePresence><Assistant controller={assistant} /><BootSequence /><div className="sr-only" aria-live="polite">{expanded ? `${expanded} focused` : 'Spatial orbit ready'}</div></main></MotionConfig>;
 }

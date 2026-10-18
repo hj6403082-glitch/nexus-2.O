@@ -6,7 +6,7 @@ import type { WorldGrade } from '@/stores/world';
 // so re-entering feels like walking back into a room you know.
 export type ProjectWorld = {
   seed: number;
-  accent: string;          // hex, kept in NEXUS's cool band so gold stays "earned"
+  accent: string;          // hex, kept in Zeno's cool band so gold stays "earned"
   grade: WorldGrade;       // same shape as the six base worlds
   rings: number;           // 2–4 slowly counter-rotating halo rings
   shards: number;          // 5–11 light shards orbiting the platform

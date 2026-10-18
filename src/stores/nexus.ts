@@ -3,7 +3,7 @@ import { modules, wrapIndex, type ModuleId } from '@/lib/modules';
 import { useAssistant } from './assistant';
 import { useForm } from './form';
 export type TrackingStatus = 'off' | 'loading' | 'searching' | 'tracking' | 'error';
-export type Gesture = 'None' | 'Open palm' | 'Closed hand' | 'Pinch' | 'Release' | 'Swipe left' | 'Swipe right' | 'Pull' | 'Push' | 'Hold' | 'Circle';
+export type Gesture = 'None' | 'Open palm' | 'Closed hand' | 'Pinch' | 'Release' | 'Swipe left' | 'Swipe right' | 'Pull' | 'Push' | 'Hold' | 'Circle' | 'Point' | 'Peace' | 'Thumbs up' | 'Swipe up' | 'Swipe down';
 type Log = { id: number; time: string; message: string };
 interface NexusState {
   index: number; expanded: ModuleId | null; pinned: ModuleId | null; hovered: ModuleId | null; dragging: ModuleId | null;
@@ -49,4 +49,4 @@ export const useNexus = create<NexusState>((set, get) => ({
   log: message => set(s => ({ logs: [...s.logs.slice(-4), { id: Date.now() + Math.random(), time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message }] })),
 }));
 // Hot tracking data never causes React renders at camera frame rate.
-export const handSignal = { x: 0.5, y: 0.5, scale: 0, visible: false, pinching: false, zoom: 1 };
+export const handSignal = { x: 0.5, y: 0.5, scale: 0, visible: false, pinching: false, zoom: 1, pointing: false, dwell: 0, pulse: 0, label: '' };

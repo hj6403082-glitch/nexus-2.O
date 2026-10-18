@@ -5,11 +5,11 @@ import { ambientSignal } from '@/rendering/environment';
 import { voiceSignal } from '@/stores/assistant';
 
 // Audio-reactive ambiance (Phase 8, Objective 5). When ambient sound is on
-// (the same opt-in control as the drone), NEXUS also samples the room through
+// (the same opt-in control as the drone), Zeno also samples the room through
 // the microphone and publishes a smoothed 0..1 loudness into `ambientSignal`,
 // which drives fog density, dust drift and the floor caustics. The microphone
 // is opt-in and never recorded; only a running loudness average leaves the
-// analyser. NEXUS's own speaking voice also raises the level so the room
+// analyser. Zeno's own speaking voice also raises the level so the room
 // breathes while it talks, even without the mic.
 export function useAmbient() {
   const audio = useNexus(s => s.audio);
@@ -36,7 +36,7 @@ export function useAmbient() {
           analyser.getByteFrequencyData(bins as Uint8Array<ArrayBuffer>);
           let sum = 0; for (let i = 0; i < bins.length; i++) sum += bins[i];
           const level = Math.min(1, (sum / bins.length / 255) * 2.2);
-          // Mic loudness, with NEXUS's own voice as a floor.
+          // Mic loudness, with Zeno's own voice as a floor.
           const target = Math.max(level, voiceSignal.level * 0.7);
           ambientSignal.level += (target - ambientSignal.level) * 0.12;
           raf = requestAnimationFrame(loop);

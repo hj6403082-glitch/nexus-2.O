@@ -1,4 +1,4 @@
-// Synthesised sound design for NEXUS transitions and the orb: no audio files,
+// Synthesised sound design for Zeno transitions and the orb: no audio files,
 // everything is built from oscillators and noise through a shared reverb.
 // The audio context starts on the first click or key press (browsers require a
 // gesture); until then, and when effects are muted, every cue is silent.

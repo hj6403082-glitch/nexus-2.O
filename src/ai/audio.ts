@@ -1,4 +1,4 @@
-// Cinematic audio processing for the voice of NEXUS (Phase 8, Objective 4) and
+// Cinematic audio processing for the voice of Zeno (Phase 8, Objective 4) and
 // the FFT signal the ferrofluid humanoid reads (Objective 3).
 //
 // Premium TTS audio (ElevenLabs) is routed through a Web Audio graph that gives
@@ -40,7 +40,7 @@ export interface VoiceGraph {
 // spirit of a film AI antagonist: a calm, deep human performance (the source is
 // slowed slightly, which also lowers its pitch) layered with a detuned digital
 // double, a faint ring-modulated metallic edge, a short comb resonance and soft
-// saturation. It processes NEXUS's own neural voice; it does not imitate any
+// saturation. It processes Zeno's own neural voice; it does not imitate any
 // real actor's voice. "natural" leaves the human voice clean.
 export type VoiceStyle = 'ultron' | 'natural';
 export const VOICE_STYLES: Record<VoiceStyle, { label: string; playbackRate: number; speed: number }> = {

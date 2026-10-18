@@ -1,4 +1,4 @@
-// Premium text-to-speech for the voice of NEXUS (Phase 8, Objective 4).
+// Premium text-to-speech for the voice of Zeno (Phase 8, Objective 4).
 //
 // Default provider: ElevenLabs. The spec asked for a "Bold", "Brave",
 // "Authoritative" voice — deep, resonant and natural — so the default voice is

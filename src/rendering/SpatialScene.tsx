@@ -28,6 +28,21 @@ import { flungSlot } from './flick';
 import { CoreOrb } from './CoreOrb';
 
 const moduleIds = modules.map(m => m.id);
+// Card backing: a tessellated plane whose corners are pulled onto arcs, so the
+// glass matches the rounded HTML card and the bend shader still has vertices.
+function roundedPlane(width: number, height: number, radius: number) {
+  const g = new THREE.PlaneGeometry(width, height, 24, 28), p = g.attributes.position as THREE.BufferAttribute;
+  const hx = width / 2 - radius, hy = height / 2 - radius;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    if (Math.abs(x) <= hx || Math.abs(y) <= hy) continue;
+    const cx = Math.sign(x) * hx, cy = Math.sign(y) * hy, dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+    if (d > radius) p.setXY(i, cx + dx / d * radius, cy + dy / d * radius);
+  }
+  p.needsUpdate = true; g.computeVertexNormals(); return g;
+}
+const cardGeometry = roundedPlane(3.03, 3.66, .38);
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const EMPTY: string[] = [];
 function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: number; angle: React.RefObject<number>; time: React.RefObject<number> }) {
   const group = useRef<THREE.Group>(null);
@@ -78,9 +93,13 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
     const radius = 5.2 * state.depth;
     let ox = Math.sin(a) * radius + hx, oy = (Math.sin(time.current * .4 + ordinal) - Math.sin(ordinal)) * .08 + hy + raised, oz = Math.cos(a) * radius - 3.5;
     ox += (outer[0] - ox) * fl; oy += (outer[1] - oy) * fl; oz += (outer[2] - oz) * fl;
+    // Liquid float: every card bobs and sways on its own slow current.
+    const t = frameState.clock.elapsedTime, float = (reducedMotion() ? 0 : 1) * (1 - g) * (1 - fl);
+    oy += (Math.sin(t * .8 + ordinal * 1.7) * .11 + Math.sin(t * 1.9 + ordinal) * .025) * float;
     group.current.position.set(ox + (cx - ox) * g, oy + (cy - oy) * g, oz + (cz - oz) * g);
-    group.current.rotation.y = Math.sin(a) * .18 * (1 - g) + fl * .4;
-    group.current.rotation.z = fl * Math.sin(ordinal) * .25;
+    group.current.rotation.y = Math.sin(a) * .18 * (1 - g) + fl * .4 + Math.sin(t * .5 + ordinal * 2.3) * .05 * float;
+    group.current.rotation.z = fl * Math.sin(ordinal) * .25 + Math.sin(t * .6 + ordinal) * .03 * float;
+    group.current.rotation.x = Math.sin(t * .7 + ordinal * 2.1) * .045 * float;
     // Tension bending: bow the card toward the fingertip while it is dragged.
     const gx = THREE.MathUtils.clamp(hx * .35, -1.5, 1.5), gy = THREE.MathUtils.clamp(hy * .35, -1.8, 1.8);
     driveBend(bend.current, grabbed, gx, gy, dragX.current.velocity, dragY.current.velocity, dt);
@@ -105,7 +124,7 @@ function Card({ module, ordinal, angle, time }: { module: NexusModule; ordinal: 
   });
   return <group ref={group} scale={.72}>
     {/* Tessellated face so the tension-bend vertex shader stays smooth. */}
-    <mesh><boxGeometry args={[3.03, 3.66, .045, 24, 28, 1]} /><meshStandardMaterial ref={setMaterial} color="#0b1724" metalness={.65} roughness={.27} transparent opacity={.55} emissive={module.accent} emissiveIntensity={.05} /></mesh>
+    <mesh geometry={cardGeometry}><meshStandardMaterial ref={setMaterial} color="#140d33" metalness={.6} roughness={.22} transparent opacity={.55} side={THREE.DoubleSide} emissive={module.accent} emissiveIntensity={.05} /></mesh>
     <Html transform wrapperClass="spatial-card-root" position={[0, 0, .04]} distanceFactor={4} zIndexRange={[20, 0]}><div ref={html}><ModuleCard module={module} active={active} ordinal={ordinal} /></div></Html>
   </group>;
 }

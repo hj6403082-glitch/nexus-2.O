@@ -2,7 +2,7 @@ import { voiceSignal } from '@/stores/assistant';
 import { createVoiceGraph, fftSignal, VOICE_STYLES, type VoiceGraph, type VoiceStyle } from './audio';
 import { SentenceSpeaker } from './speech';
 
-// CinematicSpeaker speaks NEXUS's replies with the neural voice (the local
+// CinematicSpeaker speaks Zeno's replies with the neural voice (the local
 // Kokoro voice, or ElevenLabs when a key is set) routed through the Web Audio
 // graph: the voice character (Ultron-style or natural), sub-bass, spatial
 // reverb and the FFT analyser that drives the mouth and the orb. Synthesis of

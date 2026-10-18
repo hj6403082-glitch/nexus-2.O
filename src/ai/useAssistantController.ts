@@ -23,7 +23,7 @@ export function useAssistantController() {
       // A recovered brain clears its own stale offline error.
       if (configured && !was.configured) useAssistant.setState({ error: null, ...(was.status === 'Offline' ? { status: 'Idle' as const } : {}) });
     }
-    catch { useAssistant.setState({ configured: false, brain: 'offline', status: 'Offline', error: 'Cannot reach the local AI service. Check that NEXUS is still running.' }); }
+    catch { useAssistant.setState({ configured: false, brain: 'offline', status: 'Offline', error: 'Cannot reach the local AI service. Check that Zeno is still running.' }); }
   }, []);
   const interrupt = useCallback((status = true) => {
     generation.current++; request.current?.abort(); request.current = null; generating.current = false;
@@ -85,7 +85,7 @@ export function useAssistantController() {
       if (epoch !== generation.current || abort.signal.aborted) return;
       generating.current = false; pending.current = null; speaker.current?.stop();
       // A dropped connection surfaces as a TypeError with a browser-specific text.
-      const message = error instanceof TypeError ? 'Cannot reach the NEXUS AI service. Check that NEXUS is still running, then retry.' : error instanceof Error && error.message ? error.message : 'The AI request failed. Please retry.';
+      const message = error instanceof TypeError ? 'Cannot reach the Zeno AI service. Check that Zeno is still running, then retry.' : error instanceof Error && error.message ? error.message : 'The AI request failed. Please retry.';
       useAssistant.setState(s => ({ status: 'Offline', error: message, messages: s.messages.map(m => m.id === id ? { ...m, failed: true } : m) }));
       // The brain may have gone away (Ollama closed, model removed): re-read its state.
       void refreshRef.current();
@@ -112,7 +112,7 @@ export function useAssistantController() {
       }
       if (!finished) throw new Error('The download stopped before it finished. Retry to resume it.');
       useAssistant.setState({ pull: null }); await refresh();
-    } catch (error) { useAssistant.setState({ pull: null, error: error instanceof TypeError ? 'Cannot reach NEXUS to download the model. Check that it is still running.' : error instanceof Error ? error.message : 'The download failed.' }); }
+    } catch (error) { useAssistant.setState({ pull: null, error: error instanceof TypeError ? 'Cannot reach Zeno to download the model. Check that it is still running.' : error instanceof Error ? error.message : 'The download failed.' }); }
   }, [refresh]);
   const stopMicrophone = useCallback(() => {
     listening.current = false; if (restart.current) clearTimeout(restart.current); restart.current = null;
@@ -122,19 +122,19 @@ export function useAssistantController() {
   const toggleMicrophone = useCallback(() => {
     if (listening.current) { stopMicrophone(); useAssistant.setState({ status: 'Idle' }); return; }
     const Constructor = recognitionConstructor();
-    if (!Constructor) { useAssistant.setState({ error: 'Speech recognition is unavailable in this browser. Use text, or open NEXUS in a compatible Chrome or Edge browser.' }); return; }
+    if (!Constructor) { useAssistant.setState({ error: 'Speech recognition is unavailable in this browser. Use text, or open Zeno in a compatible Chrome or Edge browser.' }); return; }
     const mic = new Constructor(); recognition.current = mic; listening.current = true; armedUntil.current = Date.now() + 30000;
     mic.continuous = true; mic.interimResults = true; mic.lang = navigator.language || 'en-US';
     mic.onspeechstart = () => { if (speaker.current?.speaking || generating.current) { interrupt(); armedUntil.current = Date.now() + 30000; } useAssistant.setState({ status: 'Listening' }); };
     mic.onresult = e => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const phrase = e.results[i][0].transcript.trim();
-        const wake = /\bnexus\b/i.test(phrase);
+        const wake = /\b(?:zeno|xeno|zino|zeeno|nexus)\b/i.test(phrase);
         if (wake) { armedUntil.current = Date.now() + 30000; useAssistant.getState().wake(); }
         if (Date.now() > armedUntil.current) continue;
         useAssistant.setState({ transcript: phrase });
         if (e.results[i].isFinal) {
-          const cleaned = phrase.replace(/^(?:hey\s+)?nexus[\s,:.!]*/i, '').trim();
+          const cleaned = phrase.replace(/^(?:hey\s+)?(?:zeno|xeno|zino|zeeno|nexus)[\s,:.!]*/i, '').trim();
           if (cleaned) { armedUntil.current = Date.now() + 60000; void sendRef.current(cleaned); }
         }
       }
@@ -153,7 +153,7 @@ export function useAssistantController() {
   useEffect(() => {
     speaker.current = new CinematicSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI, () => useAssistant.getState().voiceStyle);
     // Voice preferences persist; asking for status also starts preparing the
-    // neural voice so it is ready by the time NEXUS first speaks.
+    // neural voice so it is ready by the time Zeno first speaks.
     try { const saved = JSON.parse(localStorage.getItem('nexus-voice') || '{}'); useAssistant.setState({ ...(typeof saved.voice === 'boolean' ? { voice: saved.voice } : {}), ...(saved.voiceStyle === 'natural' || saved.voiceStyle === 'ultron' ? { voiceStyle: saved.voiceStyle } : {}) }); } catch { /* defaults */ }
     let neuralTimer: ReturnType<typeof setTimeout> | null = null;
     const neural = async () => {
@@ -165,7 +165,7 @@ export function useAssistantController() {
     };
     void neural();
     refreshRef.current = refresh; void refresh();
-    // Starting Ollama after NEXUS should just work: re-check while the brain is
+    // Starting Ollama after Zeno should just work: re-check while the brain is
     // not ready (only while the panel is open) and whenever the window regains focus.
     const poll = setInterval(() => { const s = useAssistant.getState(); if (s.visible && !s.configured && !document.hidden) void refresh(); }, 8000);
     const focus = () => { if (!useAssistant.getState().configured) void refresh(); };

@@ -1,4 +1,4 @@
-/* NEXUS 01.10 — app window, depth, motion and the embodiment transition FX.
+/* Zeno 01.10 — app window, depth, motion and the embodiment transition FX.
    Layered on top of globals.css; everything here is decorative and pointer-transparent. */
 :root { --px: 0; --py: 0; --glow: #8fd3ff; --glow-soft: #8fd3ff33; --ease-out: cubic-bezier(.16, 1, .3, 1); }
 

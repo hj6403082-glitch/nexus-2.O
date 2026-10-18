@@ -11,7 +11,10 @@ export class GestureEngine {
   private stillPoint: Point | null = null;
   private last: { x: number; y: number; time: number } | null = null;
   private velocity = { x: 0, y: 0 };
-  reset() { this.pinch = false; this.pinchScale = 0; this.samples = []; this.heldSince = 0; this.stillPoint = null; this.cooldown = 0; this.last = null; this.velocity = { x: 0, y: 0 }; }
+  private pose: Gesture | null = null;
+  private poseSince = 0;
+  private poseFired = false;
+  reset() { this.pose = null; this.poseSince = 0; this.poseFired = false; this.pinch = false; this.pinchScale = 0; this.samples = []; this.heldSince = 0; this.stillPoint = null; this.cooldown = 0; this.last = null; this.velocity = { x: 0, y: 0 }; }
   update(points: Point[], now: number): GestureResult | null {
     if (points.length < 21) { this.reset(); return null; }
     const wrist = points[0], palm = points[9];
@@ -29,8 +32,13 @@ export class GestureEngine {
     this.last = { x, y, time: now };
     const ratio = distance(points[4], points[8]) / scale;
     const pinching = ratio < (this.pinch ? .48 : .32); // Hysteresis avoids repeated grab/drop.
-    const fingers = [8, 12, 16, 20].filter(tip => distance(points[tip], wrist) > distance(points[tip - 2], wrist) * 1.2).length;
-    let gesture: Gesture = pinching ? 'Pinch' : fingers >= 3 ? 'Open palm' : fingers === 0 ? 'Closed hand' : 'None';
+    const extended = [8, 12, 16, 20].map(tip => distance(points[tip], wrist) > distance(points[tip - 2], wrist) * 1.2);
+    const fingers = extended.filter(Boolean).length;
+    // Thumb up: every finger curled and the thumb tip clearly above the knuckles.
+    const thumbUp = fingers === 0 && points[5].y - points[4].y > scale * .55 && distance(points[4], points[5]) > scale * .6;
+    const shape: Gesture = pinching ? 'Pinch' : thumbUp ? 'Thumbs up' : fingers >= 3 ? 'Open palm' : fingers === 0 ? 'Closed hand'
+      : extended[0] && !extended[1] && !extended[2] && !extended[3] ? 'Point' : extended[0] && extended[1] && !extended[2] && !extended[3] ? 'Peace' : 'None';
+    let gesture: Gesture = shape;
     let event: Gesture | null = null;
     if (pinching && !this.pinch) { event = 'Pinch'; this.pinchScale = scale; this.samples = []; }
     if (!pinching && this.pinch) { event = 'Release'; gesture = 'Release'; this.pinchScale = 0; }
@@ -42,9 +50,12 @@ export class GestureEngine {
     this.samples = this.samples.filter(s => now - s.time < 650);
     if (!pinching && fingers >= 3 && now > this.cooldown && this.samples.length > 4) {
       const first = this.samples[0], dx = x - first.x, dy = y - first.y;
-      if (Math.abs(dx) > .19 && Math.abs(dy) < .12 && now - first.time < 600) {
+      if (Math.abs(dx) > .16 && Math.abs(dy) < .12 && now - first.time < 600) {
         event = dx < 0 ? 'Swipe left' : 'Swipe right'; gesture = event;
-        this.cooldown = now + 750; this.samples = [];
+        this.cooldown = now + 650; this.samples = [];
+      } else if (Math.abs(dy) > .16 && Math.abs(dx) < .12 && now - first.time < 600) {
+        event = dy < 0 ? 'Swipe up' : 'Swipe down'; gesture = event;
+        this.cooldown = now + 650; this.samples = [];
       }
     }
     // Circle is reserved for the AI wake system. Require a closed, substantial path.
@@ -61,6 +72,11 @@ export class GestureEngine {
     if (fingers >= 3 && !pinching && !event) {
       if (!this.stillPoint || distance({ x, y, z: 0 }, this.stillPoint) > .035) { this.stillPoint = { x, y, z: 0 }; this.heldSince = now; }
     } else { this.stillPoint = null; this.heldSince = 0; }
+    // Peace and thumbs-up are deliberate poses: they fire once after being held.
+    if (shape !== this.pose) { this.pose = shape; this.poseSince = now; this.poseFired = false; }
+    if (!event && !this.poseFired && (shape === 'Peace' || shape === 'Thumbs up') && now - this.poseSince > 600 && now > this.cooldown) {
+      event = shape; this.poseFired = true; this.cooldown = now + 900;
+    }
     const frozen = this.heldSince > 0 && now - this.heldSince > 900;
     if (frozen) gesture = 'Hold';
     this.pinch = pinching;
