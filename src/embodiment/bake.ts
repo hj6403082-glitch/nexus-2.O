@@ -13,7 +13,10 @@ float sx(float a,float b,float k){return -sm(-a,-b,k);}
 float cap(vec3 p,vec3 a,vec3 b,float r){vec3 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h)-r;}
 // A sculpted android head (no neck or body): defined brow, cheekbones, nose,
 // lips, jaw and chin rather than a smooth blob, so the particles read as a face.
+// Below the eyes the head narrows into a slim V-shaped jaw and chin; eye level
+// and above are untouched (the irises are placed there).
 float field(vec3 p){
+ float slim=mix(1.34,1.,smoothstep(.42,.72,p.y)); p.x*=slim;
  float head=ell(p-vec3(0.,.78,-.02),vec3(.315,.40,.33));
  head=sm(head,ell(p-vec3(0.,.62,.08),vec3(.262,.30,.26)),.10);
  head=sm(head,ell(p-vec3(0.,.47,.10),vec3(.215,.13,.20)),.08);
@@ -46,7 +49,7 @@ float field(vec3 p){
   head=sx(head,-ell(p-vec3(s*.105,.49,.29),vec3(.012,.012,.015)),.01);}
  head=sx(head,-cap(p,vec3(0.,.565,.335),vec3(0.,.528,.322),.007),.01);
  head=sm(head,ell(p-vec3(0.,.375,.25),vec3(.055,.03,.04)),.03);
- return head;
+ return head/slim;
 }
 vec3 normalAt(vec3 p){vec2 e=vec2(.001,0.);return normalize(vec3(field(p+e.xyy)-field(p-e.xyy),field(p+e.yxy)-field(p-e.yxy),field(p+e.yyx)-field(p-e.yyx)));}
 void main(){
