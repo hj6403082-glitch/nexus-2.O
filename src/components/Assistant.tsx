@@ -54,7 +54,7 @@ export function Assistant({ controller }: { controller: AssistantController }) {
     {state.voice && <label className="voice-choice">Character<select aria-label="Voice character" value={state.voiceStyle} onChange={e => useAssistant.setState({ voiceStyle: e.target.value === 'natural' ? 'natural' : 'ultron' })}><option value="ultron">Ultron-style synthetic</option><option value="natural">Natural human</option></select></label>}
     {state.voice && state.neural && <p className="neural-status" data-state={state.neural.state}>{state.neural.message}</p>}
     {state.voice && <label className="voice-choice">Backup voice<select aria-label="Speaking voice" value={state.voiceURI} onChange={e => useAssistant.setState({ voiceURI: e.target.value })}><option value="">Best available</option>{voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}</select></label>}
-    <p className="voice-privacy">{state.microphone ? 'Say “Zeno” to wake. Use headphones for reliable interruption. Browser speech recognition may use its provider’s servers.' : 'Voice is opt-in. Conversation history stays in this tab; questions include recent context and use your configured local or cloud model.'}</p>
+    <p className="voice-privacy">{state.microphone ? 'Say “Zeno” to wake. Use headphones for reliable interruption. Browser speech recognition may use its provider’s servers.' : 'Voice is opt-in. Zeno keeps your recent chat and what you tell it to remember on this device (the bin clears the chat); questions use your configured local or cloud model.'}</p>
   </motion.section>;
 }
 export function WakeWave() {
