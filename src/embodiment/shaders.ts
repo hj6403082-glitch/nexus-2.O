@@ -13,15 +13,13 @@ void main(){
  for(int i=0;i<10;i++){if(abs(aCard-float(i))<.1)source=(uCards[i]*vec4(aSource,1.)).xyz;}
  float delay=aCard<9.5 ? (1.-clamp((source.z+8.7)/10.4,0.,1.))*.5 : .8;
  float gather=smoothRange(.6+delay,3.1,uTime);
- float stagger=(1.-clamp((position.y+1.2)/2.4,0.,1.))*.9+aSeed*.25;
+ float stagger=(1.-clamp((position.y-.3)/.9,0.,1.))*.9+aSeed*.25;
  float body=smoothRange(3.6+stagger,7.4,uTime);
  float presence=smoothRange(6.5,8.,uTime);
  vec3 rnd=vec3(sin(aSeed*91.),cos(aSeed*73.),sin(aSeed*51.));
  vec3 core=rnd*.10+vec3(0.,.1,2.7);
  // Resolve the final surface point first so every phase can aim at it.
  vec3 target=position; vec3 n=aNormal;
- // Idle life: the chest breathes once the figure is present.
- if(target.y<-.15){float breath=1.+sin(uClock*1.25)*.014*presence;target.xz*=breath;target.y+=sin(uClock*1.25)*.008*presence;}
  if(target.y>.26){
    vec3 pivot=vec3(0.,.43,0.);
    // Speech moves the mouth only: the jaw and lower lip hinge open with a soft
@@ -31,7 +29,8 @@ void main(){
    target.y+=uJaw*.012*smoothRange(.495,.505,target.y)*(1.-smoothRange(.53,.56,target.y))*(1.-smoothRange(.08,.12,abs(target.x)))*step(.25,target.z);
    mat3 head=ry(uHead.x)*rx(uHead.y);target=pivot+head*(target-pivot);n=head*n;
  }
- target=target*1.7+vec3(0.,.02,3.0);
+ // Only the head is shown, so it is enlarged and centred in the frame.
+ target=(target-vec3(0.,.76,0.))*3.1+vec3(0.,.45,3.0);
  // GPGPU ferrofluid: sample this particle's simulated offset and add it, so the
  // surface seethes like magnetic fluid in zero-g once the figure has formed.
  vec3 disp=vec3(0.);

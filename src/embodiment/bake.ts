@@ -10,8 +10,8 @@ vec3 hash3(vec2 p){vec3 q=fract(vec3(p.xyx)*vec3(.1031,.1030,.0973));q+=dot(q,q.
 float ell(vec3 p,vec3 r){float k0=length(p/r),k1=length(p/(r*r));return k0*(k0-1.)/max(k1,.0001);}
 float sm(float a,float b,float k){float h=clamp(.5+.5*(b-a)/k,0.,1.);return mix(b,a,h)-k*h*(1.-h);}
 float cap(vec3 p,vec3 a,vec3 b,float r){vec3 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.);return length(pa-ba*h)-r;}
-// A sculpted android bust: defined brow, cheekbones, nose, lips, jaw and chin
-// rather than a smooth blob, so the particles read as a face.
+// A sculpted android head (no neck or body): defined brow, cheekbones, nose,
+// lips, jaw and chin rather than a smooth blob, so the particles read as a face.
 float field(vec3 p){
  float head=ell(p-vec3(0.,.78,-.02),vec3(.315,.40,.33));
  head=sm(head,ell(p-vec3(0.,.62,.08),vec3(.262,.30,.26)),.10);
@@ -32,19 +32,13 @@ float field(vec3 p){
  head=min(head,ell(p-vec3(.115,.752,.262),vec3(.045,.032,.035)));
  head=min(head,ell(p-vec3(-.115,.752,.262),vec3(.045,.032,.035)));
  head=max(head,-ell(p-vec3(0.,.489,.32),vec3(.10,.008,.05)));
- float neck=ell(p-vec3(0.,.12,0.),vec3(.14,.36,.16));
- float traps=ell(p-vec3(0.,-.17,-.02),vec3(.45,.13,.2));
- float shoulders=ell(p-vec3(0.,-.36,.03),vec3(.66,.21,.26));
- float chest=ell(p-vec3(0.,-.74,.06),vec3(.52,.45,.28));
- chest=sm(chest,cap(p,vec3(.05,-.25,.22),vec3(.36,-.30,.17),.022),.05);
- chest=sm(chest,cap(p,vec3(-.05,-.25,.22),vec3(-.36,-.30,.17),.022),.05);
- return sm(sm(head,neck,.10),sm(sm(traps,shoulders,.15),chest,.2),.16);
+ return head;
 }
 vec3 normalAt(vec3 p){vec2 e=vec2(.001,0.);return normalize(vec3(field(p+e.xyy)-field(p-e.xyy),field(p+e.yxy)-field(p-e.yxy),field(p+e.yyx)-field(p-e.yyx)));}
 void main(){
  vec3 h=hash3(floor(vUv*256.)+vec2(.5,1.5)), g=hash3(floor(vUv*256.)+vec2(91.5,37.5));
- // Two in five seeds start around the head so the face gets the finest detail.
- vec3 p=g.x<.4 ? vec3((h.x-.5)*.8,h.y*.95+.3,(h.z-.5)*.8+.05) : vec3((h.x-.5)*1.9,h.y*2.8-1.35,(h.z-.5)*1.1);
+ // Seeds start in a box around the head; the ray march pulls each onto the face.
+ vec3 p=vec3((h.x-.5)*.8,h.y*.95+.3,(h.z-.5)*.8+.05)+(g-.5)*.02;
  for(int i=0;i<28;i++){float d=field(p);vec3 n=normalAt(p);p-=n*clamp(d,-.18,.18);}
  vec3 quant=floor(clamp((p+vec3(1.2,1.5,.8))/vec3(2.4,3.,1.6),0.,1.)*65535.+.5);
  if(uMode<.5)gl_FragColor=vec4(floor(quant/256.)/255.,1.);
