@@ -12,6 +12,18 @@ npm run dev -- --port 3001
 
 Open http://127.0.0.1:3001/. For a production preview, run `npm run build` followed by `npm start -- --port 3001`. Node 22+ is recommended. The development disk cache is disabled because OneDrive may lock its files on Windows.
 
+## Open NEXUS as an app (Windows, no terminal)
+
+1. Download the repository (Code → Download ZIP) and extract it, or keep your existing NEXUS folder.
+2. Double-click **Start NEXUS.cmd**. The first run installs Node.js if needed (via winget), installs components and builds NEXUS; this takes a few minutes once. Later starts take seconds and only rebuild after updates.
+3. NEXUS opens in its own app window (Edge or Chrome app mode, no tabs or address bar). The launcher also adds a **NEXUS** shortcut to your Desktop and Start menu, and starts the Ollama app if it is installed.
+
+The engine keeps running quietly in the background on `127.0.0.1:3001`; double-click **Stop NEXUS.cmd** to stop it. Its log is in `%LOCALAPPDATA%\NEXUS\engine.log`.
+
+NEXUS is also an installable web app: in the app window or browser, use **INSTALL APP** (top right) or the install icon in the address bar to pin it to the taskbar and Start menu. If the engine is not running when you open it, the window shows a reconnect screen and opens NEXUS by itself once the engine is up. The AI brain only works where Ollama runs, so use NEXUS from your own computer rather than a hosted copy when you want local AI.
+
+If Ollama is running without a model, Ask NEXUS shows a **Download** button that fetches the model (with progress) without a terminal.
+
 ## AI: local or cloud
 
 Copy `.env.example` to `.env.local` and choose a provider. Never commit `.env.local` or paste credentials into the assistant UI.

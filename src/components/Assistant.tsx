@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, ExternalLink, History, Mic, MicOff, RefreshCw, Sparkles, Square, Trash2, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowUp, Download, ExternalLink, History, Mic, MicOff, RefreshCw, Sparkles, Square, Trash2, Volume2, VolumeX, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssistant, voiceSignal } from '@/stores/assistant';
 import { useNexus } from '@/stores/nexus';
@@ -30,7 +30,7 @@ export function Assistant({ controller }: { controller: AssistantController }) {
   useEffect(() => { if (state.visible) input.current?.focus({ preventScroll: true }); }, [state.visible]);
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [last?.text]);
   if (!state.visible) return null;
-  return <motion.section className="assistant-panel" aria-label="NEXUS AI assistant" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ type: 'spring', stiffness: 130, damping: 23 }}>
+  return <motion.section className="assistant-panel" data-status={state.status} aria-label="NEXUS AI assistant" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ type: 'spring', stiffness: 130, damping: 23 }}>
     <header className="assistant-heading"><span className="assistant-symbol"><Sparkles size={18} /></span><div><strong>NEXUS</strong><span>{state.status.toUpperCase()} {state.microphone ? '· MIC ON' : ''}</span></div><button className="icon-button" onClick={() => { controller.interrupt(false); controller.stopMicrophone(); useAssistant.setState({ visible: false, status: 'Idle' }); }} aria-label="Close AI assistant"><X size={18} /></button></header>
     <VoiceMeter />
     <div className="assistant-context"><span>{useNexus.getState().expanded ? `${useNexus.getState().expanded?.toUpperCase()} CONTEXT` : 'SPATIAL CONTEXT'}</span><span>{state.configured ? state.provider.toUpperCase() + ' CONNECTED' : 'LOCAL COMMANDS READY'}</span></div>
@@ -43,7 +43,8 @@ export function Assistant({ controller }: { controller: AssistantController }) {
       <div ref={end} />
     </div>
     {state.error && <div className="assistant-error" role="alert">{state.error}</div>}
-    {state.configured === false && !state.error && <div className="assistant-setup"><strong>Connect your AI to ask questions.</strong><p>{state.setup} Module commands work now.</p><button onClick={() => void controller.refresh()}><RefreshCw size={12} /> Check connection</button></div>}
+    {state.pull ? <div className="assistant-setup brain-download" role="status"><strong>Downloading {state.pull.model}</strong><p>{state.pull.status}{state.pull.percent !== null ? ` · ${state.pull.percent}%` : ''}. Keep NEXUS open; module commands work meanwhile.</p><div className="brain-progress"><i style={{ width: `${state.pull.percent ?? 4}%` }} /></div></div>
+      : (state.configured === false || state.brain === 'model-missing') && <div className="assistant-setup"><strong>{state.brain === 'model-missing' ? 'Running on a backup model.' : state.brain === 'no-model' ? 'One step left: download the AI brain.' : 'Connect your AI to ask questions.'}</strong><p>{state.setup}{state.configured ? '' : ' Module commands work now.'}</p><div className="setup-actions">{state.provider === 'ollama' && (state.brain === 'no-model' || state.brain === 'model-missing') && <button className="setup-primary" onClick={() => void controller.pullModel(state.wanted || state.model || 'qwen3:1.7b')}><Download size={12} /> Download {state.wanted || state.model || 'qwen3:1.7b'}</button>}<button onClick={() => void controller.refresh()}><RefreshCw size={12} /> Check connection</button></div></div>}
     {!state.messages.length && <div className="assistant-suggestions">{['Open system', 'Rotate left', 'Explain MCP'].map(q => <button key={q} onClick={() => void controller.send(q)}>{q}</button>)}</div>}
     {state.transcript && <p className="live-transcript">{state.transcript}</p>}
     <form className="assistant-composer" onSubmit={e => { e.preventDefault(); setHistory(false); void controller.send(state.draft); }}><input ref={input} value={state.draft} onChange={e => useAssistant.setState({ draft: e.target.value })} maxLength={3000} placeholder="Ask NEXUS…" aria-label="Message NEXUS" /><button className="icon-button" type="button" aria-label={state.microphone ? 'Stop microphone' : 'Enable microphone'} aria-pressed={state.microphone} title={micAvailable ? 'Listen now, then say Nexus to wake again' : 'Speech recognition unavailable in this browser'} onClick={controller.toggleMicrophone}>{state.microphone ? <MicOff size={17} /> : <Mic size={17} />}</button>{busy ? <button className="send-button" type="button" onClick={() => controller.interrupt()} aria-label="Interrupt response"><Square size={14} /></button> : <button className="send-button" type="submit" disabled={!state.draft.trim()} aria-label="Send message"><ArrowUp size={18} /></button>}</form>

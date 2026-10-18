@@ -7,12 +7,19 @@ import { useNexus } from '@/stores/nexus';
 import { voiceSignal } from '@/stores/assistant';
 import { bakeBust, type BakedSurface } from './bake';
 import { captureSources } from './capture';
-import { FormTimeline, envelopes } from './timeline';
+import { FORM_DURATION, FormTimeline, envelopes, smooth } from './timeline';
 import { humanFragment, humanVertex } from './shaders';
 import { stepSpring } from '@/animations/spring';
 import { gazeSignal } from './gaze';
 import { fftSignal } from '@/ai/audio';
 import { createFerrofluid, type Ferrofluid } from './ferrofluid';
+const written = new Map<string, string>();
+function cssVars(values: Record<string, number>) {
+  for (const [key, value] of Object.entries(values)) {
+    const text = value.toFixed(3); if (written.get(key) === text) continue;
+    written.set(key, text); document.documentElement.style.setProperty(key, text);
+  }
+}
 export function HumanForm() {
   const { gl, camera } = useThree();
   const target = useForm(s => s.target);
@@ -21,7 +28,8 @@ export function HumanForm() {
   const material = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uBands: { value: new Float32Array(8) }, uFlare: { value: .55 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
+  const dispersal = useRef({ value: 0, velocity: 0 });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uBands: { value: new Float32Array(8) }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
@@ -69,14 +77,24 @@ export function HumanForm() {
       } finally { building.current = false; }
     })();
   }, [target, gl, camera]);
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const time = timeline.current.step(delta, useForm.getState().ready), e = envelopes(time);
-    Object.assign(formSignal, { time, dim: e.dim, dissolve: e.dissolve, presence: e.presence });
+    // Returning disperses into motes instead of rewinding; a new forward request
+    // mid-return pulls them straight back together.
+    const returning = timeline.current.target === 'spatial' && time > 0;
+    if (time === 0) Object.assign(dispersal.current, { value: 0, velocity: 0 });
+    const scatter = THREE.MathUtils.clamp(stepSpring(dispersal.current, returning ? 1 : 0, Math.min(delta, .05), 120, 22), 0, 1);
+    Object.assign(formSignal, { time, dim: e.dim, dissolve: e.dissolve, presence: e.presence, ignite: e.ignite, scan: e.scan, returning: scatter });
     if (useForm.getState().phase !== timeline.current.phase) useForm.setState({ phase: timeline.current.phase, ...(timeline.current.phase === 'NORMAL' ? { ready: false } : {}) });
-    document.documentElement.style.setProperty('--form-dissolve', String(e.dissolve));
-    document.documentElement.style.setProperty('--form-presence', String(e.presence));
+    // Screen-space transition effects (FormFX) read these; only write changes.
+    const wave = smooth(3.0, 4.9, time), forward = 1 - scatter;
+    cssVars({ '--form-dissolve': e.dissolve, '--form-presence': e.presence, '--form-time': time / FORM_DURATION, '--form-ignite': e.ignite * forward,
+      '--form-wave': wave, '--form-wave-o': wave * (1 - wave) * 4 * forward, '--form-scan': e.scan, '--form-scan-o': e.scan * (1 - e.scan) * 4 * forward,
+      '--form-return-o': scatter * Math.sin(Math.PI * Math.min(1, time / FORM_DURATION)) });
     if (material.current) {
       material.current.uniforms.uTime.value = time;
+      material.current.uniforms.uReturn.value = scatter;
+      material.current.uniforms.uClock.value = state.clock.elapsedTime;
       material.current.uniforms.uPixelRatio.value = gl.getPixelRatio();
       // Webcam gaze (FaceMesh) drives the neck when a face is tracked; the
       // pointer is the fallback. Scaled into a natural neck range.
@@ -91,7 +109,8 @@ export function HumanForm() {
       material.current.uniforms.uFlare.value = gazeSignal.active ? 1 : .55;
       // Advance the ferrofluid GPGPU simulation and hand its texture to the shader.
       if (ferro.current) {
-        ferro.current.step(delta, Math.max(voiceSignal.level, fftSignal.level), e.presence > 0.1);
+        // A low idle energy keeps the surface alive; the ignition surge ripples it.
+        ferro.current.step(delta, Math.max(voiceSignal.level, fftSignal.level, .06 * e.presence + e.ignite * .5), e.presence > 0.1 || e.ignite > .05);
         material.current.uniforms.uDisplace.value = ferro.current.texture;
       }
     }

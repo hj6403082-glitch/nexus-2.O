@@ -9,6 +9,8 @@ import { PERSONA } from '@/ai/persona';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 let active = 0;
+// Provider errors are written for people; low-level network/parse errors are not.
+const readable = (error: unknown, fallback: string) => error instanceof Error && error.message && !(error instanceof TypeError) && !(error instanceof SyntaxError) && !/fetch failed|ECONN|socket|terminated|undici|Unexpected token/i.test(error.message) ? error.message : fallback;
 export async function POST(request: Request) {
   if (!localRequestAllowed(request, true)) return Response.json({ error: 'Only same-origin requests to this local NEXUS instance are allowed.' }, { status: 403 });
   if (!request.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'JSON required.' }, { status: 415 });
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
         else send({ type: 'done' });
       } catch (error) {
         if (!abort.signal.aborted) {
-          if (provider === 'ollama' || provider === 'grok') { send({ type: 'error', message: error instanceof Error ? error.message : 'The model is unavailable.' }); return; }
+          if (provider === 'ollama' || provider === 'grok') { send({ type: 'error', message: readable(error, provider === 'ollama' ? 'The local model is unavailable. Make sure the Ollama app is running, then retry.' : 'Grok could not finish this request. Check your connection and try again.') }); return; }
           const status = Number((error as { status?: number })?.status);
           send({ type: 'error', message: status === 503 ? 'Gemini is temporarily overloaded. Your key is connected; please retry shortly or use the local Ollama option.' : status === 429 ? 'Gemini quota or rate limit reached. Check your Google AI billing and limits, then retry.' : status === 401 || status === 403 ? 'Gemini rejected the key. Check GEMINI_API_KEY and its API permissions.' : status === 404 ? 'The configured model is unavailable. Check GEMINI_MODEL in .env.local.' : 'Gemini could not finish this request. Check your connection and try again.' });
         } else if (!request.signal.aborted) {

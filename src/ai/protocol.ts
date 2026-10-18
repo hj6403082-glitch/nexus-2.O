@@ -54,7 +54,8 @@ export class EventDecoder {
     const lines = this.buffer.split('\n'); this.buffer = lines.pop() ?? '';
     if (!chunk && this.buffer.trim()) { lines.push(this.buffer); this.buffer = ''; }
     return lines.filter(l => l.trim()).map(line => {
-      const v = JSON.parse(line);
+      let v; try { v = JSON.parse(line); } catch { throw new Error('NEXUS received a garbled response from the AI service. Please retry.'); }
+      if (!v || typeof v !== 'object') throw new Error('Unrecognized AI stream event.');
       if (v.type === 'text' && typeof v.text === 'string') return { type: 'text', text: v.text };
       if (v.type === 'done') return { type: 'done' };
       if (v.type === 'error' && typeof v.message === 'string') return { type: 'error', message: v.message };

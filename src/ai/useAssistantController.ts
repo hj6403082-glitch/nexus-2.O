@@ -13,9 +13,17 @@ export function useAssistantController() {
   const speaker = useRef<CinematicSpeaker | null>(null), recognition = useRef<Recognition | null>(null);
   const listening = useRef(false), armedUntil = useRef(0), restart = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null), generating = useRef(false);
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
   const refresh = useCallback(async () => {
-    try { const response = await fetch('/api/ai/status', { cache: 'no-store' }); if (!response.ok) throw new Error(); const data = await response.json(); useAssistant.setState({ configured: data.configured === true, model: data.model, provider: data.provider, setup: data.message, error: null }); }
-    catch { useAssistant.setState({ configured: false, status: 'Offline', error: 'Cannot reach the local AI service. Check that NEXUS is running.' }); }
+    try {
+      const response = await fetch('/api/ai/status', { cache: 'no-store' }); if (!response.ok) throw new Error();
+      const data = await response.json();
+      const configured = data?.configured === true, was = useAssistant.getState();
+      useAssistant.setState({ configured, model: String(data?.model ?? ''), provider: String(data?.provider ?? 'ollama'), setup: String(data?.message ?? ''), brain: String(data?.state ?? (configured ? 'ready' : 'offline')), wanted: String(data?.wanted ?? '') });
+      // A recovered brain clears its own stale offline error.
+      if (configured && !was.configured) useAssistant.setState({ error: null, ...(was.status === 'Offline' ? { status: 'Idle' as const } : {}) });
+    }
+    catch { useAssistant.setState({ configured: false, brain: 'offline', status: 'Offline', error: 'Cannot reach the local AI service. Check that NEXUS is still running.' }); }
   }, []);
   const interrupt = useCallback((status = true) => {
     generation.current++; request.current?.abort(); request.current = null; generating.current = false;
@@ -40,7 +48,7 @@ export function useAssistantController() {
     const local = matchCommand(text);
     if (local) {
       const result = executeCommand(local);
-      if (typeof result !== 'string') { useAssistant.setState({ status: 'Thinking' }); append(await result); } else append(result);
+      if (typeof result !== 'string') { useAssistant.setState({ status: 'Thinking' }); append(await result.catch(() => 'That action could not finish. Please try again.')); } else append(result);
       if (epoch !== generation.current) return;
       if (useAssistant.getState().voice) speaker.current?.feed('', true);
       pending.current = null; useAssistant.setState({ status: speaker.current?.speaking ? 'Speaking' : 'Idle' }); return;
@@ -76,10 +84,36 @@ export function useAssistantController() {
     } catch (error) {
       if (epoch !== generation.current || abort.signal.aborted) return;
       generating.current = false; pending.current = null; speaker.current?.stop();
-      useAssistant.setState(s => ({ status: 'Offline', error: error instanceof Error ? error.message : 'The AI request failed.', messages: s.messages.map(m => m.id === id ? { ...m, failed: true } : m) }));
+      // A dropped connection surfaces as a TypeError with a browser-specific text.
+      const message = error instanceof TypeError ? 'Cannot reach the NEXUS AI service. Check that NEXUS is still running, then retry.' : error instanceof Error && error.message ? error.message : 'The AI request failed. Please retry.';
+      useAssistant.setState(s => ({ status: 'Offline', error: message, messages: s.messages.map(m => m.id === id ? { ...m, failed: true } : m) }));
+      // The brain may have gone away (Ollama closed, model removed): re-read its state.
+      void refreshRef.current();
     } finally { if (epoch === generation.current) { generating.current = false; request.current = null; } }
   }, [interrupt]);
   const sendRef = useRef(send); sendRef.current = send;
+  const pullModel = useCallback(async (model: string) => {
+    if (useAssistant.getState().pull) return;
+    useAssistant.setState({ pull: { model, status: 'Starting download', percent: null }, error: null });
+    try {
+      const response = await fetch('/api/ai/pull', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model }) });
+      if (!response.ok || !response.body) { const data = await response.json().catch(() => ({})); throw new Error(data.error || 'The model download could not start.'); }
+      const reader = response.body.getReader(), decoder = new TextDecoder(); let buffer = '', finished = false;
+      while (true) {
+        const { value, done } = await reader.read(); buffer += decoder.decode(value, { stream: !done });
+        const lines = buffer.split('\n'); buffer = lines.pop() ?? ''; if (done && buffer.trim()) lines.push(buffer);
+        for (const line of lines) {
+          if (!line.trim()) continue; let event; try { event = JSON.parse(line); } catch { continue; }
+          if (event.type === 'error') throw new Error(String(event.message || 'The download failed.'));
+          if (event.type === 'done') finished = true;
+          if (event.type === 'progress') useAssistant.setState({ pull: { model, status: String(event.status || 'Downloading'), percent: event.total > 0 ? Math.min(100, Math.round(event.completed / event.total * 100)) : null } });
+        }
+        if (done) break;
+      }
+      if (!finished) throw new Error('The download stopped before it finished. Retry to resume it.');
+      useAssistant.setState({ pull: null }); await refresh();
+    } catch (error) { useAssistant.setState({ pull: null, error: error instanceof TypeError ? 'Cannot reach NEXUS to download the model. Check that it is still running.' : error instanceof Error ? error.message : 'The download failed.' }); }
+  }, [refresh]);
   const stopMicrophone = useCallback(() => {
     listening.current = false; if (restart.current) clearTimeout(restart.current); restart.current = null;
     recognition.current?.abort(); recognition.current = null;
@@ -118,7 +152,12 @@ export function useAssistantController() {
   }, [interrupt, stopMicrophone]);
   useEffect(() => {
     speaker.current = new CinematicSpeaker(speaking => { useAssistant.setState({ status: speaking ? 'Speaking' : generating.current ? 'Streaming' : 'Idle' }); }, () => useAssistant.getState().voiceURI);
-    void refresh();
+    refreshRef.current = refresh; void refresh();
+    // Starting Ollama after NEXUS should just work: re-check while the brain is
+    // not ready (only while the panel is open) and whenever the window regains focus.
+    const poll = setInterval(() => { const s = useAssistant.getState(); if (s.visible && !s.configured && !document.hidden) void refresh(); }, 8000);
+    const focus = () => { if (!useAssistant.getState().configured) void refresh(); };
+    window.addEventListener('focus', focus);
     const unsubscribe = useAssistant.subscribe((s, previous) => {
       if (s.wakeAt !== previous.wakeAt) { armedUntil.current = Date.now() + 30000; if (s.microphone && !generating.current && !speaker.current?.speaking) useAssistant.setState({ status: 'Listening' }); }
       if (!s.voice && previous.voice) speaker.current?.stop();
@@ -127,9 +166,9 @@ export function useAssistantController() {
     const close = () => { interrupt(false); stopMicrophone(); useAssistant.setState({ status: 'Idle' }); };
     document.addEventListener('visibilitychange', visibility);
     window.addEventListener('nexus:stop-ai', close);
-    return () => { unsubscribe(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('nexus:stop-ai', close); interrupt(false); stopMicrophone(); speaker.current = null; };
+    return () => { clearInterval(poll); window.removeEventListener('focus', focus); unsubscribe(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('nexus:stop-ai', close); interrupt(false); stopMicrophone(); speaker.current = null; };
   }, [interrupt, refresh, stopMicrophone]);
   const clear = () => { interrupt(false); useAssistant.setState({ messages: [], error: null, transcript: '', status: 'Idle', link: null }); };
-  return { send, interrupt, toggleMicrophone, clear, refresh, stopMicrophone };
+  return { send, interrupt, toggleMicrophone, clear, refresh, stopMicrophone, pullModel };
 }
 export type AssistantController = ReturnType<typeof useAssistantController>;
