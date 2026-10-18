@@ -3,7 +3,7 @@ attribute vec3 aSource; attribute vec3 aColor; attribute vec3 aNormal;
 attribute float aCard; attribute float aSeed; attribute vec2 aCompute; attribute float aAO;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
 uniform vec2 uHead; uniform vec2 uMouth; uniform vec2 uEye; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
-uniform sampler2D uDisplace; uniform float uComputeSize;
+uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uUnder;
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -66,7 +66,8 @@ void main(){
  vec3 nn=normalize(n);
  vec3 key=normalize(vec3(-.55+sin(uClock*.21)*.12,.7,1.));float facing=clamp(dot(nn,key),0.,1.);
  float fill=clamp(dot(nn,normalize(vec3(.8,-.1,.7))),0.,1.);
- float ao=mix(1.,.08+.92*pow(aAO,1.6),presence*.9+.1);
+ // Occlusion is kept soft: deep per-bead shadows read as holes in the skin.
+ float ao=mix(1.,.42+.58*pow(aAO,1.2),presence*.9+.1);
  vec3 blue=mix(vec3(.01,.08,.05),vec3(.36,.95,.68),pow(facing,1.1))+vec3(.04,.15,.10)*fill;
  blue+=vec3(.10,.14,.16)*pow(facing,18.); // soft specular sheen
  blue*=ao;
@@ -96,8 +97,12 @@ void main(){
  vColor+=vec3(.9,1.,1.1)*coreE*(.6+beat*1.4);
  vVisibility=step(.08,uTime)*smoothRange(.45+delay,.75+delay,uTime);
  if(eye>.5)vVisibility*=smoothRange(6.9,7.8,uTime);
+ // Under-skin pass: the same particles drawn again as larger, darker beads
+ // sunk just beneath the surface, so the gaps between beads read as solid skin.
+ float under=uUnder*smoothRange(.55,1.,body);
+ if(uUnder>.5){p-=nn*.025;vColor*=.85*mix(1./max(ao,.3),1.,.5);vVisibility*=step(.01,under)*(1.-eye);}
  vec4 mv=modelViewMatrix*vec4(p,1.);vView=mv.xyz;
- vRadius=mix(.006,uSize,body)*(1.+eye*.7)*(1.+heat*.7+edge*.5+coreE*.6);gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
+ vRadius=mix(.006,uSize,body)*(1.+eye*.7)*(1.+heat*.7+edge*.5+coreE*.6)*(1.+under*1.5);gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
  gl_Position=projectionMatrix*mv;
 }`;
 export const humanFragment = `
@@ -111,6 +116,8 @@ void main(){
  vec3 surface=vView+vec3(xy.x,-xy.y,z)*vRadius;
  vec4 clip=projectionMatrix*vec4(surface,1.);
  gl_FragDepth=clip.z/clip.w*.5+.5;
- float beadLight=.55+.45*max(0.,dot(normalize(vec3(xy.x,-xy.y,z)),normalize(vec3(-.5,.7,1.))));
+ // Only a hint of per-bead shading: strong shading gave every bead a dark
+ // crescent, which read as holes. The face lighting comes from the vertex shader.
+ float beadLight=.86+.14*max(0.,dot(normalize(vec3(xy.x,-xy.y,z)),normalize(vec3(-.5,.7,1.))));
  gl_FragColor=vec4(vColor*beadLight,1.);
 }`;

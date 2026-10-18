@@ -25,13 +25,14 @@ export function HumanForm() {
   const target = useForm(s => s.target);
   const timeline = useRef(new FormTimeline()), surface = useRef<BakedSurface | null>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
-  const material = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
+  const material = useRef<THREE.ShaderMaterial>(null), underMaterial = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
   const dispersal = useRef({ value: 0, velocity: 0 }), jaw = useRef({ value: 0, velocity: 0 });
   const wide = useRef({ value: 0, velocity: 0 }), round = useRef({ value: 0, velocity: 0 }), eyeX = useRef({ value: 0, velocity: 0 }), eyeY = useRef({ value: 0, velocity: 0 });
   const saccade = useRef({ x: 0, y: 0, next: 0 });
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uMouth: { value: new THREE.Vector2() }, uEye: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 } });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uMouth: { value: new THREE.Vector2() }, uEye: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 }, uUnder: { value: 0 } });
+  const underUniforms = useRef(THREE.UniformsUtils.merge([uniforms.current, { uUnder: { value: 1 } }]));
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
@@ -45,7 +46,7 @@ export function HumanForm() {
     if (target !== 'human' || building.current || useForm.getState().ready) return;
     building.current = true;
     const report = (progress: string) => { if (mounted.current) useForm.setState({ progress }); };
-    const count = surface.current?.count ?? (useNexus.getState().quality === 'high' ? 20000 : 12000);
+    const count = surface.current?.count ?? (useNexus.getState().quality === 'high' ? 34000 : 22000);
     void (async () => {
       try {
         // The particle count is fixed from this point until the orbit returns.
@@ -63,7 +64,7 @@ export function HumanForm() {
         for (let i = 0; i < 2; i++) { const at = count - 1 - i; baked.positions.set([i ? -.115 : .115, .752, .3], at * 3); baked.normals.set([0, 0, 1], at * 3); baked.occlusion[at] = 1; captured.seeds[at] = 2; }
         g.setAttribute('aAO', new THREE.BufferAttribute(baked.occlusion, 1));
         g.setAttribute('aSeed', new THREE.BufferAttribute(captured.seeds, 1));
-        uniforms.current.uSize.value = count > 15000 ? .021 : .027;
+        uniforms.current.uSize.value = .024 * Math.sqrt(20000 / count);
         // GPGPU ferrofluid: a square displacement field, one texel per particle.
         // Each particle gets its UV into that field; the shader samples it to
         // perturb the surface like magnetic fluid in zero-g.
@@ -129,7 +130,13 @@ export function HumanForm() {
         ferro.current.step(delta, .05 * e.presence + e.ignite * .5, e.presence > 0.1 || e.ignite > .05);
         material.current.uniforms.uDisplace.value = ferro.current.texture;
       }
+      // The under-skin material mirrors every live value except its own flag.
+      const under = underMaterial.current?.uniforms;
+      if (under) for (const key in material.current.uniforms) if (key !== 'uUnder' && under[key]) under[key].value = material.current.uniforms[key].value;
     }
   }, -2);
-  return geometry ? <points geometry={geometry} frustumCulled={false}><shaderMaterial ref={material} uniforms={uniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest toneMapped={false} /></points> : null;
+  return geometry ? <>
+    <points geometry={geometry} frustumCulled={false}><shaderMaterial ref={material} uniforms={uniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest toneMapped={false} /></points>
+    <points geometry={geometry} frustumCulled={false} renderOrder={-1}><shaderMaterial ref={underMaterial} uniforms={underUniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest toneMapped={false} /></points>
+  </> : null;
 }

@@ -43,6 +43,8 @@ Use Ask Zeno to type or enable voice. Direct module, orbit and transformation co
 
 **The core.** In spatial mode a gyroscopic singularity sits at the centre of the orbit: a plasma heart inside a scanning event-horizon shell, circled by three tilted rings with light racing along them and particle streams flowing in their planes. The gyroscope spins up while Zeno thinks, everything pulses with the voice while it speaks, and it tilts toward your pointer. Click it to talk to Zeno.
 
+**Zeno knows you.** Tell it "call me ..." or "remember that ..." and it keeps that on your device; ask "what do you remember about me?" or say "forget everything" any time. It also picks up what you like from normal conversation, notices the time of day and how long you've been away, reads whether you sound excited, frustrated or down, and keeps your recent chat after a restart. The panel greets you by name.
+
 **Spheres.** The modules are glass spheres that float around the core as if tied to it by invisible strings. They drift away from your pointer, and you can drag one and let go to watch it swing back. Double-click empty space to send a shockwave that flings them all outward. Zeno now talks casually, like a person rather than an assistant, and the theme is a lively green.
 
 ## Modules

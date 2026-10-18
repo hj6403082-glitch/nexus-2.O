@@ -53,10 +53,10 @@ float field(vec3 p){
 }
 vec3 normalAt(vec3 p){vec2 e=vec2(.001,0.);return normalize(vec3(field(p+e.xyy)-field(p-e.xyy),field(p+e.yxy)-field(p-e.yxy),field(p+e.yyx)-field(p-e.yyx)));}
 void main(){
- vec3 h=hash3(floor(vUv*256.)+vec2(.5,1.5)), g=hash3(floor(vUv*256.)+vec2(91.5,37.5));
+ vec3 h=hash3(floor(vUv*512.)+vec2(.5,1.5)), g=hash3(floor(vUv*512.)+vec2(91.5,37.5));
  // Seeds start in a box around the head; the ray march pulls each onto the face.
  vec3 p=vec3((h.x-.5)*.8,h.y*.95+.3,(h.z-.5)*.8+.05)+(g-.5)*.02;
- for(int i=0;i<28;i++){float d=field(p);vec3 n=normalAt(p);p-=n*clamp(d,-.18,.18);}
+ for(int i=0;i<44;i++){float d=field(p);vec3 n=normalAt(p);p-=n*clamp(d,-.18,.18);}
  vec3 quant=floor(clamp((p+vec3(1.2,1.5,.8))/vec3(2.4,3.,1.6),0.,1.)*65535.+.5);
  if(uMode<.5)gl_FragColor=vec4(floor(quant/256.)/255.,1.);
  else if(uMode<1.5)gl_FragColor=vec4(mod(quant,256.)/255.,1.);
@@ -94,10 +94,13 @@ export async function poissonSelect(candidates: Float32Array, count: number, sli
   }
   return accepted;
 }
+// 512x512 seeds (262k candidates) so every part of the head is densely covered
+// and the Poisson pass can pick an even, gap-free spread.
+const RES = 512;
 export type BakedSurface = { positions: Float32Array; normals: Float32Array; occlusion: Float32Array; count: number };
 export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (message: string) => void, field?: string): Promise<BakedSurface> {
   report('Baking the human surface');
-  const target = new THREE.WebGLRenderTarget(256, 256, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  const target = new THREE.WebGLRenderTarget(RES, RES, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
   const scene = new THREE.Scene(), camera = new THREE.Camera();
   const material = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: field ? fragment.replace(/float field\(vec3 p\)\{[\s\S]*?\n\}/, field) : fragment, uniforms: { uMode: { value: 0 } }, depthTest: false, depthWrite: false });
   const geometry = new THREE.PlaneGeometry(2, 2); scene.add(new THREE.Mesh(geometry, material));
@@ -105,12 +108,12 @@ export async function bakeBust(gl: THREE.WebGLRenderer, count: number, report: (
   try {
     for (let pass = 0; pass < 4; pass++) {
       await nextFrame(); const previous = gl.getRenderTarget(); const autoClear = gl.autoClear;
-      try { material.uniforms.uMode.value = pass; gl.autoClear = true; gl.setRenderTarget(target); gl.render(scene, camera); const data = new Uint8Array(256 * 256 * 4); gl.readRenderTargetPixels(target, 0, 0, 256, 256, data); bytes.push(data); }
+      try { material.uniforms.uMode.value = pass; gl.autoClear = true; gl.setRenderTarget(target); gl.render(scene, camera); const data = new Uint8Array(RES * RES * 4); gl.readRenderTargetPixels(target, 0, 0, RES, RES, data); bytes.push(data); }
       finally { gl.setRenderTarget(previous); gl.autoClear = autoClear; }
     }
   } finally { geometry.dispose(); material.dispose(); target.dispose(); }
-  const candidates = new Float32Array(65536 * 3);
-  for (let i = 0; i < 65536; i++) for (let axis = 0; axis < 3; axis++) candidates[i * 3 + axis] = (bytes[0][i * 4 + axis] * 256 + bytes[1][i * 4 + axis]) / 65535 * [2.4, 3, 1.6][axis] - [1.2, 1.5, .8][axis];
+  const candidates = new Float32Array(RES * RES * 3);
+  for (let i = 0; i < RES * RES; i++) for (let axis = 0; axis < 3; axis++) candidates[i * 3 + axis] = (bytes[0][i * 4 + axis] * 256 + bytes[1][i * 4 + axis]) / 65535 * [2.4, 3, 1.6][axis] - [1.2, 1.5, .8][axis];
   report('Spreading the particles');
   const accepted = await poissonSelect(candidates, count);
   if (accepted.length !== count) throw new Error('The human surface could not be baked. Try returning to spatial mode and retrying.');
