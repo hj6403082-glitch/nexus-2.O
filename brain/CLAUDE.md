@@ -196,6 +196,13 @@ that other pillars' tests use instead of the real backend.
 - Tests: `tests/api/` uses the daemon with fakes through Starlette's `TestClient`
   (close every socket you open, or the client's exit waits forever);
   `test_real_boot.py` runs real pillars under real uvicorn.
+- `chat` frames may carry `context` (what the web app shows, up to
+  `ZENO_CHAT_MAX_CONTEXT_CHARS`). It joins that turn's prompt as data and is never
+  stored in the conversation or memory.
+- The web app's provider is `src/ai/zenoBrain.ts` (`AI_PROVIDER=zeno`), tested by
+  `tests/zeno.test.ts` in the Node suite (`npm test`). Node's built-in WebSocket
+  reports a refused handshake as a bare `error` (no close code), so the provider
+  asks `/v1/status` why.
 - Python's `LlamaGrammar.from_string` accepts grammars that llama.cpp's own parser
   rejects. Check new tool schemas with the tiny-GGUF test that validates the full
   tool grammar through the engine.

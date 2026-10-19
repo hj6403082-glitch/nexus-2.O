@@ -28,6 +28,7 @@ export function useAssistantController() {
   }, []);
   const interrupt = useCallback((status = true) => {
     generation.current++; request.current?.abort(); request.current = null; generating.current = false;
+    useAssistant.setState({ approval: null });
     speaker.current?.stop();
     if (pending.current) { const id = pending.current; useAssistant.setState(s => ({ messages: s.messages.map(m => m.id === id ? { ...m, interrupted: true } : m) })); }
     pending.current = null;
@@ -79,6 +80,8 @@ export function useAssistantController() {
         if (event.type === 'text') append(event.text);
         if (event.type === 'command') { const acknowledgement = executeCommand(event.command); if (typeof acknowledgement === 'string') append(`\n${acknowledgement}`); }
         if (event.type === 'error') throw new Error(event.message);
+        if (event.type === 'approval') useAssistant.setState({ approval: event.approval });
+        if (event.type === 'decided' && useAssistant.getState().approval?.id === event.id) useAssistant.setState({ approval: null });
         if (event.type === 'done') completed = true;
       };
       try {
@@ -100,6 +103,17 @@ export function useAssistantController() {
     } finally { if (epoch === generation.current) { generating.current = false; request.current = null; } }
   }, [interrupt]);
   const sendRef = useRef(send); sendRef.current = send;
+  // The owner's answer for an action Zeno's brain is waiting on; the turn resumes
+  // on its stream, and a 'decided' event clears the card.
+  const decide = useCallback(async (approved: boolean) => {
+    const approval = useAssistant.getState().approval; if (!approval) return;
+    try {
+      const response = await fetch('/api/ai/approval', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: approval.id, approved }) });
+      if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || 'Zeno could not record your answer.'); }
+    } catch (error) {
+      if (useAssistant.getState().approval?.id === approval.id) useAssistant.setState({ approval: null, error: error instanceof Error && !(error instanceof TypeError) ? error.message : 'Zeno could not record your answer.' });
+    }
+  }, []);
   const pullModel = useCallback(async (model: string) => {
     if (useAssistant.getState().pull) return;
     useAssistant.setState({ pull: { model, status: 'Starting download', percent: null }, error: null });
@@ -198,7 +212,7 @@ export function useAssistantController() {
     window.addEventListener('nexus:stop-ai', close);
     return () => { if (neuralTimer) clearTimeout(neuralTimer); clearInterval(poll); window.removeEventListener('focus', focus); unsubscribe(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('nexus:stop-ai', close); interrupt(false); stopMicrophone(); speaker.current = null; };
   }, [interrupt, refresh, stopMicrophone]);
-  const clear = () => { interrupt(false); useAssistant.setState({ messages: [], error: null, transcript: '', status: 'Idle', link: null }); try { localStorage.removeItem('zeno-conversation'); } catch { /* storage blocked */ } };
-  return { send, interrupt, toggleMicrophone, clear, refresh, stopMicrophone, pullModel };
+  const clear = () => { interrupt(false); useAssistant.setState({ messages: [], error: null, transcript: '', status: 'Idle', link: null, approval: null }); try { localStorage.removeItem('zeno-conversation'); } catch { /* storage blocked */ } };
+  return { send, interrupt, toggleMicrophone, clear, refresh, stopMicrophone, pullModel, decide };
 }
 export type AssistantController = ReturnType<typeof useAssistantController>;
