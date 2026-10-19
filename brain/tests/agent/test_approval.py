@@ -7,7 +7,7 @@ import pytest
 
 from tests.agent.conftest import ASK, Toolbox, act, drive, final, finished, make_agent
 from zeno.agent.audit import MemoryAuditLog
-from zeno.agent.events import ApprovalRequired, Observation, ToolCall
+from zeno.agent.events import ApprovalDecided, ApprovalRequired, Observation, ToolCall
 from zeno.agent.policy import ApprovalRequest
 from zeno.agent.registry import ToolRegistry
 from zeno.agent.tools.base import Risk
@@ -28,7 +28,13 @@ async def test_mutating_call_pauses_until_approved(
     agent, _ = make_agent([LIGHT, final("Done.")], registry, audit)
     events = await drive(agent, decide=approve)
     kinds = [type(e).__name__ for e in events]
-    assert kinds[:4] == ["Thought", "ToolCall", "ApprovalRequired", "Observation"]
+    assert kinds[:5] == [
+        "Thought",
+        "ToolCall",
+        "ApprovalRequired",
+        "ApprovalDecided",
+        "Observation",
+    ]
     assert toolbox.calls == [("set_light", {"room": "kitchen", "on": True})]
     request = seen[0]
     assert request.tool == "set_light"
@@ -132,4 +138,21 @@ async def test_tool_call_is_announced_before_approval(
     assert call.risk is Risk.MUTATING
     assert events.index(call) < next(
         i for i, e in enumerate(events) if isinstance(e, ApprovalRequired)
+    )
+
+
+async def test_the_decision_is_reported_as_an_event(
+    registry: ToolRegistry, audit: MemoryAuditLog
+) -> None:
+    agent, _ = make_agent([LIGHT, final("ok")], registry, audit)
+    requests: list[ApprovalRequest] = []
+
+    def decide(request: ApprovalRequest) -> None:
+        requests.append(request)
+        request.deny("no", by="boss")
+
+    events = await drive(agent, decide=decide)
+    decided = next(e for e in events if isinstance(e, ApprovalDecided))
+    assert decided == ApprovalDecided(
+        step=1, request_id=requests[0].id, approved=False, by="boss", reason="no"
     )

@@ -13,6 +13,7 @@ from typing import Any
 from zeno.agent.audit import AuditKind, AuditLog, AuditRecord
 from zeno.agent.events import (
     AgentEvent,
+    ApprovalDecided,
     ApprovalRequired,
     Finished,
     Observation,
@@ -189,6 +190,9 @@ class ReActAgent:
                             "by": decision.by,
                             "reason": decision.reason,
                         },
+                    )
+                    yield ApprovalDecided(
+                        run.step, request.id, decision.approved, decision.by, decision.reason
                     )
                     if decision.approved:
                         ok, content = await _invoke(item, args)

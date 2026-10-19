@@ -59,3 +59,38 @@ async def test_real_sampler_runs_end_to_end(
             raw = record.data["raw"]
             assert raw.lstrip().startswith("{")
             assert not CONTROL.search(raw)
+
+
+async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
+    engine: LlamaCppEngine, tmp_path: Path
+) -> None:
+    # Python's LlamaGrammar.from_string is laxer than llama.cpp's parser, so check
+    # every built-in tool's schema against the real one, through the engine.
+    from zeno.agent.steps import step_grammar
+    from zeno.agent.tools import builtin_tools
+    from zeno.agent.tools.scripts import script_tools
+    from zeno.agent.tools.ui import ui_tools
+    from zeno.memory.episodic import EpisodicMemory
+    from zeno.memory.fake import HashEmbedder, InMemoryVectorStore
+    from zeno.memory.manager import MemoryManager
+    from zeno.memory.semantic import FactMemory
+    from zeno.senses.manager import ConnectionManager
+
+    async def nowhere(command: dict[str, object]) -> None:
+        return None
+
+    store, embedder = InMemoryVectorStore(), HashEmbedder()
+    memory = MemoryManager(
+        facts=FactMemory(store, embedder), episodes=EpisodicMemory(store, embedder)
+    )
+    registry = ToolRegistry(
+        [
+            *builtin_tools(memory=memory, devices=ConnectionManager()),
+            *script_tools(tmp_path, timeout=1.0, max_output=100),
+            *ui_tools(nowhere),
+        ]
+    )
+    await engine.load()
+    backend = engine._backend  # the real grammar parser lives here
+    assert backend is not None
+    assert backend.validate_grammar(step_grammar(registry))

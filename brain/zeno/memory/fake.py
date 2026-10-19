@@ -101,6 +101,12 @@ class HashEmbedder:
     def dimension(self) -> int:
         return self._dimension
 
+    async def load(self) -> None:
+        """Nothing to load; mirrors ``LlamaEmbedder.load``."""
+
+    def close(self) -> None:
+        """Nothing to free; mirrors ``LlamaEmbedder.close``."""
+
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
         return [self._embed_one(t) for t in texts]
 

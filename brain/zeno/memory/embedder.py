@@ -21,6 +21,14 @@ class LlamaEmbedder:
         self._load_lock = asyncio.Lock()
 
     @property
+    def model_path(self) -> Path:
+        return self._path
+
+    async def load(self) -> None:
+        """Load the model now rather than on first use (the daemon does this at boot)."""
+        await self._load()
+
+    @property
     def dimension(self) -> int:
         if self._llama is None:
             raise InferenceError("The embedding model is not loaded yet.")

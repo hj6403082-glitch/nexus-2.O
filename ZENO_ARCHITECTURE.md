@@ -148,16 +148,18 @@ brain/                          # new Python package, independent of the Next.js
 │   │       ├── clock.py        # get_time
 │   │       ├── calculator.py   # safe arithmetic (AST walk, no eval)
 │   │       ├── system.py       # named system tools (fixed implementations)
-│   │       ├── scripts.py      # curated script runner (later)
+│   │       ├── scripts.py      # curated script runner (brain/scripts/*.py)
 │   │       ├── memory.py       # recall / remember
 │   │       ├── devices.py      # list devices, read sensors, send commands
-│   │       └── ui.py           # emits web-app commands (with the API step)
+│   │       └── ui.py           # emits web-app commands
 │   ├── api/
-│   │   ├── app.py              # FastAPI app factory
-│   │   ├── chat.py             # POST /v1/chat (NDJSON stream)
-│   │   ├── status.py           # GET /v1/status
-│   │   └── memory.py           # memory CRUD for the owner
-│   └── orchestrator.py         # wires pillars: message → memory → agent → stream
+│   │   ├── app.py              # FastAPI app: status, chat socket, device socket
+│   │   ├── chat.py             # /v1/chat/ws session: turns, approvals, cancel
+│   │   ├── protocol.py         # chat frames (inbound validated)
+│   │   └── auth.py             # chat bearer token (data/api-token)
+│   ├── orchestrator.py         # wires pillars: message → memory → agent → stream
+│   ├── daemon.py               # ZenoDaemon: ordered boot, serve, clean shutdown
+│   └── __main__.py             # python -m zeno [serve | token]
 ├── scripts/                    # owner-curated scripts the agent may run
 ├── edge/
 │   ├── zeno_edge.py            # Raspberry Pi reference client
