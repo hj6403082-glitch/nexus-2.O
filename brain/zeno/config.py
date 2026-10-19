@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     max_invalid_frames: int = Field(5, ge=1)
     event_queue_size: int = Field(1000, ge=1)
 
+    agent_max_steps: int = Field(5, ge=1)
+    agent_max_identical_calls: int = Field(2, ge=1)
+    """The same tool with the same arguments may run this often per request."""
+    agent_approval_timeout: float = Field(120.0, gt=0.0)
+    """Seconds to wait for the owner to approve a state-changing tool before refusing."""
+    agent_max_observation_chars: int = Field(2000, ge=1)
+    audit_log_path: Path = Path("data/audit/agent.jsonl")
+
     @field_validator("senses_host")
     @classmethod
     def _loopback_only(cls, host: str) -> str:

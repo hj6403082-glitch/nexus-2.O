@@ -56,3 +56,25 @@ def test_memory_defaults() -> None:
     assert settings.memory_min_similarity == 0.35
     assert settings.episode_half_life_days == 30.0
     assert settings.working_memory_messages == 20
+
+
+def test_agent_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.agent_max_steps == 5
+    assert settings.agent_max_identical_calls == 2
+    assert settings.agent_approval_timeout == 120.0
+    assert settings.agent_max_observation_chars == 2000
+    assert settings.audit_log_path == Path("data/audit/agent.jsonl")
+
+
+def test_agent_limits_come_from_settings() -> None:
+    from zeno.agent.loop import AgentLimits
+
+    limits = AgentLimits.from_settings(Settings(_env_file=None, agent_max_steps=3))
+    assert limits.max_steps == 3
+    assert limits.max_identical_calls == 2
+
+
+def test_agent_step_limit_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, agent_max_steps=0)

@@ -10,13 +10,25 @@ from pydantic import BaseModel
 
 
 def gbnf_for_schema(schema: Mapping[str, Any]) -> str:
-    """Convert a JSON schema to a llama.cpp GBNF grammar."""
-    return _cached(json.dumps(schema, sort_keys=True))
+    """Convert a JSON schema to a llama.cpp GBNF grammar.
+
+    Properties keep their declared order, which is the order the model generates
+    them in (so a "thought" field declared first is written first).
+    """
+    return _cached(json.dumps(schema))
+
+
+# llama-cpp-python's converter lets strings contain raw control characters, which
+# JSON forbids, so a model could emit text no JSON parser accepts. This is the
+# stricter rule current llama.cpp uses.
+_LOOSE_CHAR = r'char ::= [^"\\] |'
+_JSON_CHAR = r'char ::= [^"\\\x7F\x00-\x1F] |'
 
 
 @lru_cache(maxsize=128)
 def _cached(schema_json: str) -> str:
-    return str(json_schema_to_gbnf(schema_json))
+    grammar = str(json_schema_to_gbnf(schema_json))
+    return grammar.replace(_LOOSE_CHAR, _JSON_CHAR)
 
 
 @lru_cache(maxsize=128)

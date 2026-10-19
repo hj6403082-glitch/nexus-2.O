@@ -77,3 +77,25 @@ async def test_generate_json_raises_with_the_raw_text_when_attempts_run_out() ->
 async def test_generate_json_rejects_zero_attempts() -> None:
     with pytest.raises(ValueError):
         await generate_json(ScriptedEngine([]), ASK, Decision, max_attempts=0)
+
+
+class Ordered(BaseModel):
+    thought: str
+    answer: str
+
+
+def test_grammar_keeps_the_declared_field_order() -> None:
+    # The ReAct loop relies on "thought" being generated before the action, so the
+    # grammar must not reorder fields (e.g. alphabetically).
+    grammar = gbnf_for_model(Ordered)
+    root = next(line for line in grammar.splitlines() if line.startswith("root ::="))
+    assert root.index("thought") < root.index("answer")
+
+
+def test_grammar_strings_cannot_contain_raw_control_characters() -> None:
+    # JSON forbids unescaped U+0000-U+001F in strings; a grammar that allows them
+    # lets the model produce text that no JSON parser accepts.
+    grammar = gbnf_for_model(Ordered)
+    char = next(line for line in grammar.splitlines() if line.startswith("char ::="))
+    assert "\\x00-\\x1F" in char
+    LlamaGrammar.from_string(grammar, verbose=False)

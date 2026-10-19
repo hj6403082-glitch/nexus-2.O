@@ -137,17 +137,21 @@ brain/                          # new Python package, independent of the Next.js
 │   │   ├── auth.py             # device tokens (hashed), TLS helpers
 │   │   └── events.py           # asyncio EventBus
 │   ├── agent/
-│   │   ├── loop.py             # ReAct loop
-│   │   ├── parser.py           # step parsing / validation
-│   │   ├── policy.py           # allow / confirm / deny + audit
+│   │   ├── loop.py             # ReAct loop, limits, loop detection
+│   │   ├── steps.py            # step schema + grammar built from the registry
+│   │   ├── policy.py           # approval requests for MUTATING tools
+│   │   ├── audit.py            # append-only JSONL audit log
+│   │   ├── events.py           # what a run yields (thought, call, approval, ...)
 │   │   ├── registry.py         # ToolRegistry
 │   │   └── tools/
-│   │       ├── base.py         # Tool base class (schema, risk, timeout)
+│   │       ├── base.py         # @tool, ToolArgs, Risk (READ_ONLY / MUTATING)
+│   │       ├── clock.py        # get_time
+│   │       ├── calculator.py   # safe arithmetic (AST walk, no eval)
 │   │       ├── system.py       # named system tools (fixed implementations)
-│   │       ├── scripts.py      # curated script runner
-│   │       ├── memory.py       # remember / recall / forget
-│   │       ├── devices.py      # query sensors, send device commands
-│   │       └── ui.py           # emits web-app commands
+│   │       ├── scripts.py      # curated script runner (later)
+│   │       ├── memory.py       # recall / remember
+│   │       ├── devices.py      # list devices, read sensors, send commands
+│   │       └── ui.py           # emits web-app commands (with the API step)
 │   ├── api/
 │   │   ├── app.py              # FastAPI app factory
 │   │   ├── chat.py             # POST /v1/chat (NDJSON stream)

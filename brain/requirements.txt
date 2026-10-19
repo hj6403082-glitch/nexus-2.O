@@ -17,6 +17,9 @@ fastapi==0.147.0
 uvicorn[standard]==0.54.0
 websockets==17.2
 
+# Pillar 4: IANA time zones for the get_time tool (Windows has no system tz database)
+tzdata==2026.5
+
 # Validation and configuration
 pydantic==2.14.1
 pydantic-settings==2.16.0
