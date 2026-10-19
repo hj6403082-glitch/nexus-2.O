@@ -154,6 +154,27 @@ that other pillars' tests use instead of the real backend.
   app's loop (see the command round-trip test). The suite has a 30 s per-test
   timeout so a hung socket fails instead of stalling.
 
+## Agent (ReAct tools)
+
+- A tool is `@tool(risk=Risk.READ_ONLY | Risk.MUTATING, timeout=...)` on
+  `async def name(args: SomeArgs) -> str`, where `SomeArgs` subclasses `ToolArgs`
+  (unknown fields refused). The docstring is what the model reads. Tools that need a
+  dependency are built by a factory (`memory_tools(manager)`), never looked up by name.
+- `ToolRegistry` only accepts `Tool` objects. The step grammar is rebuilt from it, so
+  the model can only name registered tools with schema-valid arguments.
+- `ReActAgent.run(messages)` yields events. An `ApprovalRequired` pauses the run until
+  `event.request.approve()` or `.deny(reason)`; no answer within
+  `agent_approval_timeout` is a denial. Closing the generator cancels the run.
+- Tool timeouts and exceptions become error observations; the run carries on. The
+  step limit and the identical-call limit end the run with a fixed message.
+- Every step goes to the audit log (`JsonlAuditLog`, append-only, mode 600). If a
+  record cannot be written the run raises `AuditError` before acting.
+- `tests/agent/test_safety.py` fails on `eval`, `exec`, `__import__`, `importlib`,
+  `os.system` or any `shell=` argument anywhere in `zeno/agent/`.
+- The grammar converter in `zeno/inference/grammar.py` keeps declared field order
+  (so `thought` is generated before `action`) and forbids raw control characters in
+  strings. Keep both when touching it.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.
