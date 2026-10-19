@@ -1,9 +1,9 @@
 export const humanVertex = `
 attribute vec3 aSource; attribute vec3 aColor; attribute vec3 aNormal;
-attribute float aCard; attribute float aSeed; attribute vec2 aCompute; attribute float aAO;
+attribute float aCard; attribute float aSeed; attribute vec2 aCompute; attribute float aAO; attribute float aNode;
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
 uniform vec2 uHead; uniform vec2 uMouth; uniform vec2 uEye; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
-uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uUnder;
+uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uUnder; uniform float uNet;
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -76,9 +76,9 @@ void main(){
  float blink=1.-step(.965,fract(uClock/4.7+.3))*presence;
  if(eye>.5)blue=mix(blue,vec3(.85,1.,.8)*(0.7+uFlare*0.7),smoothRange(6.9,7.8,uTime)*blink);
  // Glowing irises with dark pupils that glance around (uEye) and close in blinks.
- vec3 look=normalize(vec3(uEye*.35,1.));
+ vec3 look=normalize(vec3(uEye*.35,1.));float iris=0.;
  for(int k=0;k<2;k++){vec3 q=position-vec3(k==0?.115:-.115,.752,.262);
-  if(length(q/vec3(.052,.04,.045))<1.12&&position.z>.24&&eye<.5){float d=dot(normalize(q),look);
+  if(length(q/vec3(.052,.04,.045))<1.12&&position.z>.24&&eye<.5){float d=dot(normalize(q),look);iris=smoothRange(.76,.82,d);
    vec3 iris=mix(vec3(.55,.95,.15),vec3(1.05,1.2,.45),smoothRange(.86,.93,d))*(.7+uFlare*.6);
    vec3 c=mix(vec3(.22,.30,.36),iris,smoothRange(.78,.84,d));c=mix(c,vec3(.01,.02,.04),smoothRange(.95,.97,d));
    blue=mix(blue,c,presence*blink);}}
@@ -97,12 +97,20 @@ void main(){
  vColor+=vec3(.9,1.,1.1)*coreE*(.6+beat*1.4);
  vVisibility=step(.08,uTime)*smoothRange(.45+delay,.75+delay,uTime);
  if(eye>.5)vVisibility*=smoothRange(6.9,7.8,uTime);
- // Under-skin pass: the same particles drawn again as larger, darker beads
- // sunk just beneath the surface, so the gaps between beads read as solid skin.
+ // Once formed the face is a net: threads between surface nodes (uNet pass),
+ // small glowing knots where they meet, and the irises. Every other particle
+ // fades out after carrying the transition.
+ float formed=smoothRange(.7,1.,body)*(1.-uReturn);
+ float knot=max(aNode,max(iris,eye));
+ // Contrast lets the lighting carve the brow, nose, cheeks and lips out of the net.
+ if(uNet>.5){vVisibility*=formed*(1.-eye);vColor=pow(max(vColor,vec3(0.)),vec3(1.7))*2.6+vec3(.01,.04,.025);}
+ else if(uUnder<.5)vVisibility*=mix(1.,knot,formed);
+ // Hidden depth pass: larger beads sunk well inside the surface so the back of
+ // the head's net is hidden behind an invisible skull.
  float under=uUnder*smoothRange(.55,1.,body);
- if(uUnder>.5){p-=nn*.025;vColor*=.85*mix(1./max(ao,.3),1.,.5);vVisibility*=step(.01,under)*(1.-eye);}
+ if(uUnder>.5){p-=nn*.075;vVisibility*=step(.01,under)*(1.-eye);}
  vec4 mv=modelViewMatrix*vec4(p,1.);vView=mv.xyz;
- vRadius=mix(.006,uSize,body)*(1.+eye*.7)*(1.+heat*.7+edge*.5+coreE*.6)*(1.+under*1.5);gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
+ vRadius=mix(.006,uSize,body)*(1.+eye*.7)*(1.+heat*.7+edge*.5+coreE*.6)*(1.+under*1.5)*mix(1.,.38,formed*aNode*(1.-iris)*(1.-uUnder));gl_PointSize=clamp(vRadius*2.*uPixelRatio*700./max(.2,-mv.z),1.,34.);
  gl_Position=projectionMatrix*mv;
 }`;
 export const humanFragment = `
@@ -120,4 +128,13 @@ void main(){
  // crescent, which read as holes. The face lighting comes from the vertex shader.
  float beadLight=.86+.14*max(0.,dot(normalize(vec3(xy.x,-xy.y,z)),normalize(vec3(-.5,.7,1.))));
  gl_FragColor=vec4(vColor*beadLight,1.);
+}`;
+
+// The net's threads: lit like the surface and glowing, faded by visibility.
+export const netFragment = `
+precision highp float;
+varying vec3 vColor;varying float vVisibility;
+void main(){
+ if(vVisibility<.02)discard;
+ gl_FragColor=vec4(vColor,vVisibility*.85);
 }`;

@@ -5,10 +5,11 @@ import * as THREE from 'three';
 import { useForm, formSignal, cardMatrices } from '@/stores/form';
 import { useNexus } from '@/stores/nexus';
 import { voiceSignal } from '@/stores/assistant';
-import { bakeBust, type BakedSurface } from './bake';
+import { bakeBust, poissonSelect, type BakedSurface } from './bake';
+import { buildNet } from './net';
 import { captureSources } from './capture';
 import { FORM_DURATION, FormTimeline, envelopes, smooth } from './timeline';
-import { humanFragment, humanVertex } from './shaders';
+import { humanFragment, humanVertex, netFragment } from './shaders';
 import { stepSpring } from '@/animations/spring';
 import { gazeSignal } from './gaze';
 import { fftSignal } from '@/ai/audio';
@@ -24,15 +25,16 @@ export function HumanForm() {
   const { gl, camera } = useThree();
   const target = useForm(s => s.target);
   const timeline = useRef(new FormTimeline()), surface = useRef<BakedSurface | null>(null);
-  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
-  const material = useRef<THREE.ShaderMaterial>(null), underMaterial = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
+  const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null), [net, setNet] = useState<THREE.BufferGeometry | null>(null);
+  const material = useRef<THREE.ShaderMaterial>(null), underMaterial = useRef<THREE.ShaderMaterial>(null), netMaterial = useRef<THREE.ShaderMaterial>(null), building = useRef(false), mounted = useRef(true);
   const gaze = useRef({ x: 0, y: 0 }), headX = useRef({ value: 0, velocity: 0 }), headY = useRef({ value: 0, velocity: 0 });
   const ferro = useRef<Ferrofluid | null>(null);
   const dispersal = useRef({ value: 0, velocity: 0 }), jaw = useRef({ value: 0, velocity: 0 });
   const wide = useRef({ value: 0, velocity: 0 }), round = useRef({ value: 0, velocity: 0 }), eyeX = useRef({ value: 0, velocity: 0 }), eyeY = useRef({ value: 0, velocity: 0 });
   const saccade = useRef({ x: 0, y: 0, next: 0 });
-  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uMouth: { value: new THREE.Vector2() }, uEye: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 }, uUnder: { value: 0 } });
+  const uniforms = useRef({ uCards: { value: cardMatrices }, uTime: { value: 0 }, uPixelRatio: { value: 1 }, uSize: { value: .013 }, uHead: { value: new THREE.Vector2() }, uMouth: { value: new THREE.Vector2() }, uEye: { value: new THREE.Vector2() }, uJaw: { value: 0 }, uFlare: { value: .55 }, uReturn: { value: 0 }, uClock: { value: 0 }, uDisplace: { value: null as THREE.Texture | null }, uComputeSize: { value: 0 }, uUnder: { value: 0 }, uNet: { value: 0 } });
   const underUniforms = useRef(THREE.UniformsUtils.merge([uniforms.current, { uUnder: { value: 1 } }]));
+  const netUniforms = useRef(THREE.UniformsUtils.merge([uniforms.current, { uNet: { value: 1 } }]));
   useEffect(() => {
     mounted.current = true;
     const move = (e: PointerEvent) => { gaze.current = { x: (e.clientX / innerWidth - .5) * .25, y: (e.clientY / innerHeight - .5) * .13 }; };
@@ -40,6 +42,7 @@ export function HumanForm() {
     return () => { mounted.current = false; window.removeEventListener('pointermove', move); };
   }, []);
   useEffect(() => () => geometry?.dispose(), [geometry]);
+  useEffect(() => () => net?.dispose(), [net]);
   useEffect(() => () => { ferro.current?.dispose(); ferro.current = null; }, []);
   useEffect(() => {
     timeline.current.target = target;
@@ -75,7 +78,18 @@ export function HumanForm() {
         uniforms.current.uComputeSize.value = side;
         ferro.current?.dispose();
         try { ferro.current = createFerrofluid(gl, side, baked.positions, count); } catch { ferro.current = null; uniforms.current.uComputeSize.value = 0; }
-        setGeometry(g); useForm.setState({ ready: true, progress: '' });
+        // The net: an even spread of knots across the face, each tied to its
+        // nearest neighbours. Its lines share every attribute with the particles,
+        // so the mouth, head turns and transitions move the net too.
+        report('Weaving the net');
+        const knots = await poissonSelect(baked.positions.subarray(0, (count - 2) * 3), useNexus.getState().quality === 'high' ? 6500 : 4800);
+        const node = new Float32Array(count); for (const k of knots) node[k] = 1;
+        g.setAttribute('aNode', new THREE.BufferAttribute(node, 1));
+        const lines = new THREE.BufferGeometry();
+        for (const [name, attribute] of Object.entries(g.attributes)) lines.setAttribute(name, attribute);
+        lines.setIndex(new THREE.BufferAttribute(buildNet(baked.positions, knots, 4, .045), 1));
+        if (!mounted.current) return;
+        setNet(lines); setGeometry(g); useForm.setState({ ready: true, progress: '' });
       } catch (error) {
         if (mounted.current) useForm.setState({ target: 'spatial', error: error instanceof Error ? error.message : 'Human form could not start. Please retry.', progress: '' });
       } finally { building.current = false; }
@@ -131,12 +145,12 @@ export function HumanForm() {
         material.current.uniforms.uDisplace.value = ferro.current.texture;
       }
       // The under-skin material mirrors every live value except its own flag.
-      const under = underMaterial.current?.uniforms;
-      if (under) for (const key in material.current.uniforms) if (key !== 'uUnder' && under[key]) under[key].value = material.current.uniforms[key].value;
+      for (const mirror of [underMaterial.current?.uniforms, netMaterial.current?.uniforms]) if (mirror) for (const key in material.current.uniforms) if (key !== 'uUnder' && key !== 'uNet' && mirror[key]) mirror[key].value = material.current.uniforms[key].value;
     }
   }, -2);
   return geometry ? <>
     <points geometry={geometry} frustumCulled={false}><shaderMaterial ref={material} uniforms={uniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest toneMapped={false} /></points>
-    <points geometry={geometry} frustumCulled={false} renderOrder={-1}><shaderMaterial ref={underMaterial} uniforms={underUniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest toneMapped={false} /></points>
+    <points geometry={geometry} frustumCulled={false} renderOrder={-1}><shaderMaterial ref={underMaterial} uniforms={underUniforms.current} vertexShader={humanVertex} fragmentShader={humanFragment} transparent={false} depthWrite depthTest colorWrite={false} toneMapped={false} /></points>
+    {net && <lineSegments geometry={net} frustumCulled={false} renderOrder={1}><shaderMaterial ref={netMaterial} uniforms={netUniforms.current} vertexShader={humanVertex} fragmentShader={netFragment} transparent depthWrite={false} depthTest blending={THREE.AdditiveBlending} toneMapped={false} /></lineSegments>}
   </> : null;
 }
