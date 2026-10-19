@@ -143,10 +143,15 @@ class DeviceSession:
             # reconnect), so a client that never answers the close cannot linger.
             asyncio.create_task(conn.closed.wait()),
         }
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+        try:
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in tasks:
+                task.cancel()
+            # Not gather(): if this session is itself being cancelled (server
+            # shutdown), gather re-raises a child's CancelledError in place of ours,
+            # and the caller's cancel scope no longer recognises it as its own.
+            await asyncio.wait(tasks)
         for task in done:
             if (error := task.exception()) is not None:
                 raise error
