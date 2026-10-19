@@ -73,10 +73,13 @@ To go back to CPU, rerun setup without the switch after
 
 Run everything from `brain/` with the venv active.
 
-- `pytest` — the default suite. Uses fakes only: no model download, no GPU, no
-  network; must stay fast (seconds).
-- `pytest -m slow` — tests that load a real GGUF model (set `ZENO_TEST_MODEL` to its
-  path). Skip cleanly when the model is absent.
+- `pytest` — the default suite. No downloads, no GPU, no network; must stay fast
+  (seconds). Unit tests use fakes (`zeno/inference/fake.py`, the `FakeBackend` in
+  `tests/inference/test_llama_cpp_engine.py`). Integration tests run the real
+  llama.cpp backend on a tiny random-weight GGUF that `tests/fixtures/tiny_gguf.py`
+  generates on the fly (~350 KB, loads in milliseconds).
+- `pytest -m slow` — tests that load a real chat model (set `ZENO_TEST_MODEL` to its
+  `.gguf` path). Skip cleanly when it is absent.
 - `ruff check .` and `ruff format --check .` — lint and formatting.
 - `mypy` — strict type checking of `zeno/`.
 
@@ -117,6 +120,15 @@ that other pillars' tests use instead of the real backend.
   user-readable messages only at the API edge.
 - Configuration only through `zeno/config.py` (env vars prefixed `ZENO_`, `.env`
   file). No hard-coded paths or ports elsewhere.
+
+## llama.cpp gotchas
+
+- An unparsable GBNF grammar **segfaults the process** at sampling time. Never pass a
+  grammar to llama.cpp without `LlamaBackend.validate_grammar` (the engine does this).
+- All llama.cpp calls go through the engine's single worker thread. Never call the
+  backend from another thread or the event loop.
+- Close streams you stop early with `contextlib.aclosing(engine.stream(...))` so the
+  worker stops generating.
 
 ## Safety rules
 
