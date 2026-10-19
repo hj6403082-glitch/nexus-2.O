@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Literal
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from zeno.config import Settings
 from zeno.inference.base import ChatMessage, GenerationParams, GrammarError, ModelLoadError
@@ -54,6 +54,22 @@ async def test_grammar_forces_valid_json_from_a_random_model(
         engine, HI, Verdict, GenerationParams(max_tokens=64, temperature=1.0, seed=seed)
     )
     assert isinstance(verdict, Verdict)
+
+
+class Note(BaseModel):
+    # Bounded so a random model always reaches the closing quote within max_tokens.
+    title: str = Field(max_length=12)
+    body: str = Field(max_length=24)
+
+
+@pytest.mark.parametrize("seed", range(5))
+async def test_grammar_forces_valid_free_text_strings(engine: LlamaCppEngine, seed: int) -> None:
+    # Random weights pick odd bytes, control characters included; the grammar must
+    # keep every string valid JSON.
+    note = await generate_json(
+        engine, HI, Note, GenerationParams(max_tokens=200, temperature=1.0, seed=seed)
+    )
+    assert isinstance(note, Note)
 
 
 async def test_invalid_grammar_raises_instead_of_crashing(engine: LlamaCppEngine) -> None:
