@@ -13,6 +13,22 @@ from zeno.memory.manager import MemoryManager
 from zeno.senses.manager import ConnectionManager
 
 
+def builtin_tools(
+    *,
+    memory: MemoryManager | None = None,
+    devices: ConnectionManager | None = None,
+    sensors: SensorCache | None = None,
+    command_timeout: float = 5.0,
+) -> list[Tool[Any]]:
+    """The standard tool set. Memory and device tools join when those pillars are wired."""
+    tools: list[Tool[Any]] = [get_time, calculate, get_system_info]
+    if memory is not None:
+        tools += memory_tools(memory)
+    if devices is not None:
+        tools += device_tools(devices, sensors or SensorCache(), command_timeout=command_timeout)
+    return tools
+
+
 def builtin_registry(
     *,
     memory: MemoryManager | None = None,
@@ -20,10 +36,8 @@ def builtin_registry(
     sensors: SensorCache | None = None,
     command_timeout: float = 5.0,
 ) -> ToolRegistry:
-    """The standard tool set. Memory and device tools join when those pillars are wired."""
-    tools: list[Tool[Any]] = [get_time, calculate, get_system_info]
-    if memory is not None:
-        tools += memory_tools(memory)
-    if devices is not None:
-        tools += device_tools(devices, sensors or SensorCache(), command_timeout=command_timeout)
-    return ToolRegistry(tools)
+    return ToolRegistry(
+        builtin_tools(
+            memory=memory, devices=devices, sensors=sensors, command_timeout=command_timeout
+        )
+    )

@@ -16,6 +16,12 @@ class ScriptedEngine:
         self._context_size = context_size
         self.calls: list[tuple[list[ChatMessage], GenerationParams]] = []
 
+    async def load(self) -> None:
+        """Nothing to load; mirrors ``LlamaCppEngine.load``."""
+
+    def close(self) -> None:
+        """Nothing to free; mirrors ``LlamaCppEngine.close``."""
+
     @property
     def context_size(self) -> int:
         return self._context_size

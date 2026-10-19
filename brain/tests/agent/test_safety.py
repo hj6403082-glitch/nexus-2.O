@@ -11,7 +11,14 @@ AGENT_DIR = Path(zeno.agent.__file__).parent
 SOURCES = sorted(AGENT_DIR.rglob("*.py"))
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__"}
 FORBIDDEN_MODULES = {"importlib", "pickle", "marshal", "ctypes"}
-FORBIDDEN_ATTRIBUTES = {("os", "system"), ("os", "popen"), ("os", "execv"), ("os", "spawnl")}
+FORBIDDEN_ATTRIBUTES = {
+    ("os", "system"),
+    ("os", "popen"),
+    ("os", "execv"),
+    ("os", "spawnl"),
+    ("asyncio", "create_subprocess_shell"),
+}
+PROCESS_CALLS = {"create_subprocess_exec", "Popen", "run", "call", "check_output"}
 
 
 def test_sources_were_found() -> None:
@@ -36,3 +43,19 @@ def test_no_dynamic_code_or_shell(path: Path) -> None:
                 assert alias.name.split(".")[0] not in FORBIDDEN_MODULES, path.name
         if isinstance(node, ast.ImportFrom) and node.module:
             assert node.module.split(".")[0] not in FORBIDDEN_MODULES, path.name
+
+
+def test_only_the_script_runner_starts_processes() -> None:
+    starters = set()
+    for path in SOURCES:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"asyncio", "subprocess"}
+                and node.func.attr in PROCESS_CALLS
+            ):
+                starters.add(path.relative_to(AGENT_DIR).as_posix())
+    assert starters == {"tools/scripts.py"}

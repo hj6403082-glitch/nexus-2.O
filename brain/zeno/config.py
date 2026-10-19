@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     """Seconds to wait for the owner to approve a state-changing tool before refusing."""
     agent_max_observation_chars: int = Field(2000, ge=1)
     audit_log_path: Path = Path("data/audit/agent.jsonl")
+    scripts_dir: Path = Path("scripts")
+    """Owner-curated Python scripts the agent may run (with approval), by name."""
+    script_timeout: float = Field(30.0, gt=0.0)
+    script_max_output: int = Field(4000, ge=100)
+
+    api_token_file: Path = Path("data/api-token")
+    """Bearer token for the chat socket; created on first start, readable only by you."""
+    api_allowed_origins: list[str] = []
+    """Browser origins allowed to open the chat socket. Empty: no browser pages."""
+    chat_max_chars: int = Field(4000, ge=1)
 
     @field_validator("senses_host")
     @classmethod

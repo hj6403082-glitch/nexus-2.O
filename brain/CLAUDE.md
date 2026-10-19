@@ -175,6 +175,31 @@ that other pillars' tests use instead of the real backend.
   (so `thought` is generated before `action`) and forbids raw control characters in
   strings. Keep both when touching it.
 
+## Running the brain (orchestrator and API)
+
+- `python -m zeno` runs everything on `127.0.0.1:8765` (`ZENO_SENSES_PORT`):
+  `GET /v1/status`, the chat socket `/v1/chat/ws` and the device socket. `python -m
+  zeno token` prints the chat token (created in `data/api-token`, mode 600).
+- `ZenoDaemon` boots in a fixed order inside the app's lifespan: token, ChromaDB,
+  embedder, chat model, event bus, tools. uvicorn finishes the lifespan before it
+  binds the socket, so nothing connects to a half-started brain. A failed step
+  unwinds what started (newest first) and `/v1/status` says why.
+- Embeddings use `ZENO_EMBEDDING_MODEL_PATH`, falling back to the chat model.
+- Chat clients send `chat` / `approval` / `cancel` frames and receive `ready`,
+  `thought`, `tool_call`, `approval_required`, `approval`, `command`, `observation`,
+  `step_rejected`, `text`, `done` and `error` (`zeno/api/protocol.py`, `chat.py`).
+  `text`, `command`, `error` and `done` match the web app's `StreamEvent` shapes.
+- The chat socket needs the bearer token, and refuses any browser `Origin` not in
+  `ZENO_API_ALLOWED_ORIGINS`: WebSockets skip CORS, so a web page could otherwise
+  drive (and approve for) the agent. Approvals only resolve on the connection that
+  received the request.
+- Tests: `tests/api/` uses the daemon with fakes through Starlette's `TestClient`
+  (close every socket you open, or the client's exit waits forever);
+  `test_real_boot.py` runs real pillars under real uvicorn.
+- Python's `LlamaGrammar.from_string` accepts grammars that llama.cpp's own parser
+  rejects. Check new tool schemas with the tiny-GGUF test that validates the full
+  tool grammar through the engine.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.

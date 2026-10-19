@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, WebSocket
+from fastapi import APIRouter, FastAPI, WebSocket
 
 from zeno.config import Settings
 from zeno.senses.auth import DeviceAuth, parse_bearer
@@ -52,12 +52,21 @@ def create_app(
     app.state.settings = settings
     app.state.manager = manager
     app.state.bus = bus
+    app.include_router(device_router(settings, auth=auth, manager=manager, bus=bus))
+    return app
 
-    @app.websocket("/v1/devices/{device_id}/ws")
+
+def device_router(
+    settings: Settings, *, auth: DeviceAuth, manager: ConnectionManager, bus: EventBus
+) -> APIRouter:
+    """The device socket, for any app that owns the manager's and bus's lifecycle."""
+    router = APIRouter()
+
+    @router.websocket("/v1/devices/{device_id}/ws")
     async def device_socket(websocket: WebSocket, device_id: str) -> None:
         await DeviceSession(websocket, device_id, settings, auth, manager, bus).run()
 
-    return app
+    return router
 
 
 def server_config(settings: Settings, app: FastAPI) -> uvicorn.Config:
@@ -143,10 +152,15 @@ class DeviceSession:
             # reconnect), so a client that never answers the close cannot linger.
             asyncio.create_task(conn.closed.wait()),
         }
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
+        try:
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in tasks:
+                task.cancel()
+            # Not gather(): if this session is itself being cancelled (server
+            # shutdown), gather re-raises a child's CancelledError in place of ours,
+            # and the caller's cancel scope no longer recognises it as its own.
+            await asyncio.wait(tasks)
         for task in done:
             if (error := task.exception()) is not None:
                 raise error

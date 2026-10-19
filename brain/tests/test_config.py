@@ -78,3 +78,13 @@ def test_agent_limits_come_from_settings() -> None:
 def test_agent_step_limit_must_be_positive() -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, agent_max_steps=0)
+
+
+def test_orchestrator_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.api_token_file == Path("data/api-token")
+    assert settings.api_allowed_origins == []
+    assert settings.scripts_dir == Path("scripts")
+    assert settings.script_timeout == 30.0
+    assert settings.script_max_output == 4000
+    assert settings.chat_max_chars == 4000

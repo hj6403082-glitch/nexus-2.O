@@ -33,6 +33,16 @@ class ApprovalRequired:
 
 
 @dataclass(frozen=True, slots=True)
+class ApprovalDecided:
+    step: int
+    request_id: str
+    approved: bool
+    by: str
+    """Who decided: the approver's name, or "timeout" when nobody answered in time."""
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class Observation:
     step: int
     tool: str
@@ -55,4 +65,6 @@ class Finished:
     steps: int
 
 
-AgentEvent = Thought | ToolCall | ApprovalRequired | Observation | StepRejected | Finished
+AgentEvent = (
+    Thought | ToolCall | ApprovalRequired | ApprovalDecided | Observation | StepRejected | Finished
+)

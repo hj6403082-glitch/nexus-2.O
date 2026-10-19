@@ -72,6 +72,20 @@ async def test_grammar_forces_valid_free_text_strings(engine: LlamaCppEngine, se
     assert isinstance(note, Note)
 
 
+class Patterned(BaseModel):
+    # Regex escapes that llama.cpp's own grammar parser does not accept as written.
+    capability: str = Field(pattern=r"^[a-z]{1,4}(\.[a-z]{1,4}){1,2}$")
+    zone: str = Field(pattern=r"^[A-Za-z+\-]{1,6}$")
+
+
+@pytest.mark.parametrize("seed", range(3))
+async def test_regex_patterns_compile_in_llama_cpp(engine: LlamaCppEngine, seed: int) -> None:
+    result = await generate_json(
+        engine, HI, Patterned, GenerationParams(max_tokens=64, temperature=1.0, seed=seed)
+    )
+    assert "." in result.capability
+
+
 async def test_invalid_grammar_raises_instead_of_crashing(engine: LlamaCppEngine) -> None:
     # llama.cpp segfaults on an unparsable grammar, so the engine must refuse it.
     with pytest.raises(GrammarError):
