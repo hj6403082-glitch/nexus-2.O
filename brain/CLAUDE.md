@@ -142,6 +142,18 @@ that other pillars' tests use instead of the real backend.
   `chromadb`; it uses the `VectorStore` protocol, and any new store must pass
   `tests/memory/test_store_contract.py`.
 
+## Senses (device WebSocket server)
+
+- Register a device and get its token: `python -m zeno.senses register pi-livingroom`
+  (also `list`, `revoke <id>`, `serve`). Only token hashes are stored.
+- Devices connect to `ws://127.0.0.1:8765/v1/devices/<id>/ws` with
+  `Authorization: Bearer <token>`, then send `hello` within `hello_timeout`.
+- Requests carrying an `Origin` header are refused: devices never send one, browsers
+  always do, so a web page cannot reach the socket.
+- Server tests use Starlette's `TestClient`; `client.portal` runs coroutines on the
+  app's loop (see the command round-trip test). The suite has a 30 s per-test
+  timeout so a hung socket fails instead of stalling.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.
