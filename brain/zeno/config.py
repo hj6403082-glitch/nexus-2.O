@@ -26,3 +26,11 @@ class Settings(BaseSettings):
     seed: int | None = None
     max_queue: int = Field(4, ge=0)
     """Requests allowed to wait while another one is generating."""
+
+    memory_dir: Path = Path("data/memory")
+    """Where ChromaDB persists Zeno's long-term memory."""
+    embedding_model_path: Path | None = None
+    """GGUF embedding model (e.g. nomic-embed-text). Never committed."""
+    memory_min_similarity: float = Field(0.35, ge=-1.0, le=1.0)
+    episode_half_life_days: float = Field(30.0, gt=0.0)
+    working_memory_messages: int = Field(20, ge=2)
