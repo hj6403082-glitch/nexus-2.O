@@ -11,3 +11,13 @@ playwright-report/
 
 # The owner's private Zeno profile (see zeno-profile.example.json)
 zeno-profile.json
+
+# Zeno Python brain
+brain/.venv/
+brain/data/
+brain/.env
+*.gguf
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

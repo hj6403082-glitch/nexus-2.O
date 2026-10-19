@@ -1,0 +1,22 @@
+# Zeno brain runtime dependencies. Pinned; bump deliberately and re-run the suite.
+#
+# llama-cpp-python is the CPU build. Prebuilt CPU wheels come from the index
+# below (no compiler needed); if no wheel matches your platform pip falls back to
+# building from source. To switch to an NVIDIA GPU, see "CPU vs CUDA" in
+# brain/CLAUDE.md or run `setup.ps1 -Cuda` / `setup.sh --cuda`.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+# Pillar 1: native inference (GGUF models via llama.cpp)
+llama-cpp-python==0.3.36
+
+# Pillar 2: persistent vector memory (embedded, no server)
+chromadb==1.5.9
+
+# Pillar 3: HTTP + WebSocket server
+fastapi==0.147.0
+uvicorn[standard]==0.54.0
+websockets==17.2
+
+# Validation and configuration
+pydantic==2.14.1
+pydantic-settings==2.16.0
