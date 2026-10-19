@@ -47,3 +47,12 @@ def test_reads_dotenv_file(tmp_path: Path) -> None:
 def test_rejects_invalid_values(field: str, value: float) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **{field: value})
+
+
+def test_memory_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.memory_dir == Path("data/memory")
+    assert settings.embedding_model_path is None
+    assert settings.memory_min_similarity == 0.35
+    assert settings.episode_half_life_days == 30.0
+    assert settings.working_memory_messages == 20

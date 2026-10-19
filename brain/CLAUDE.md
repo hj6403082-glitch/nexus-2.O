@@ -130,6 +130,18 @@ that other pillars' tests use instead of the real backend.
 - Close streams you stop early with `contextlib.aclosing(engine.stream(...))` so the
   worker stops generating.
 
+## ChromaDB gotchas
+
+- `chromadb.EphemeralClient()` instances in one process **share the same data**.
+  Tests isolate by giving each test its own collection name and deleting it after
+  (see `tests/memory/conftest.py`).
+- Always build clients through `zeno.memory.chroma_store` (`ephemeral_client`,
+  `open_persistent_store`): they turn telemetry off, and mixing client settings in
+  one process raises an error.
+- Collection names need 3+ characters. Code outside `chroma_store.py` never imports
+  `chromadb`; it uses the `VectorStore` protocol, and any new store must pass
+  `tests/memory/test_store_contract.py`.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.
