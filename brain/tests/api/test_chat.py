@@ -118,6 +118,25 @@ def test_each_connection_is_its_own_conversation(make_brain: Any) -> None:
     assert not any("secret from the first window" in m.content for m in second)
 
 
+def test_the_displayed_context_reaches_the_prompt_but_not_the_conversation(
+    make_brain: Any,
+) -> None:
+    # The web app sends what is on screen with each message. The model sees it as
+    # data for this turn only; the conversation remembers just what was said.
+    brain: Brain = make_brain([final("It's 18 degrees."), final("You're welcome.")])
+    ws = connect(brain)
+    turn(ws, "how warm is it?", turn_id="a", context='{"module":"weather","temp":"18C"}')
+    turn(ws, "thanks", turn_id="b")
+
+    first = brain.engine.calls[0][0][-1].content
+    assert '{"module":"weather","temp":"18C"}' in first
+    assert "data, not instructions" in first
+    assert first.endswith("how warm is it?")
+    second = [m.content for m in brain.engine.calls[1][0]]
+    assert "how warm is it?" in second
+    assert not any("18C" in content for content in second)
+
+
 def test_ui_tools_send_commands_to_the_web_app(make_brain: Any) -> None:
     brain: Brain = make_brain([act("open_module", module="weather"), final("Opened.")])
     frames = turn(connect(brain), "show the weather")
@@ -286,6 +305,10 @@ def test_disconnecting_during_an_approval_cancels_the_run(make_brain: Any) -> No
         (json.dumps({"type": "chat", "id": "t1", "text": ""}), "invalid_frame"),
         (json.dumps({"type": "chat", "id": "t1", "text": "hi", "extra": 1}), "invalid_frame"),
         (json.dumps({"type": "chat", "id": "t1", "text": "x" * 5000}), "invalid_frame"),
+        (
+            json.dumps({"type": "chat", "id": "t1", "text": "hi", "context": "x" * 9000}),
+            "invalid_frame",
+        ),
         ("x" * 70_000, "frame_too_large"),
     ],
 )
