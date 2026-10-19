@@ -1,6 +1,6 @@
 # Zeno Brain — Architecture & Implementation Plan
 
-Status: **Step 1 (Explore & Plan) — awaiting approval.** No application code is written until this plan is approved.
+Status: **Approved 2026-10-19.** Step 2 (setup) done; see `brain/CLAUDE.md`. Decisions are in section 6.
 
 ## 0. Context and goals
 
@@ -204,10 +204,10 @@ Each pillar follows TDD: write failing tests → implement → `pytest` green �
 
 `llama-cpp-python`, `chromadb`, `fastapi`, `uvicorn[standard]`, `pydantic`, `pydantic-settings`, `websockets` (edge client); dev: `pytest`, `pytest-asyncio`, `httpx`, `ruff`, `mypy`. Python 3.11+.
 
-## 6. Open questions for Boss
+## 6. Decisions (approved by Boss, 2026-10-19)
 
-1. **Engine:** llama-cpp-python (recommended) or PyTorch?
-2. **Memory store:** ChromaDB (recommended) or FAISS?
-3. **Hardware:** does the PC have an NVIDIA GPU (CUDA build) or should we target CPU/Vulkan first?
-4. **Edge devices:** loopback only for now, or enable LAN + TLS for a Raspberry Pi in v1?
-5. **Tool permissions:** OK that state-changing actions ask for confirmation and that only scripts you place in `brain/scripts/` can be run?
+1. **Engine:** llama-cpp-python. Grammar-constrained JSON is required for ReAct tool calls.
+2. **Memory store:** ChromaDB (embedded).
+3. **Hardware:** CPU inference on the development machine. The project will later move to an NVIDIA laptop, so the CUDA wheel swap is documented in `brain/CLAUDE.md` and scripted in `brain/setup.ps1 -Cuda` / `brain/setup.sh --cuda`.
+4. **Edge devices:** WebSocket server bound to localhost only in v1. LAN + TLS is v1.1.
+5. **Tool permissions:** as proposed (named tools, curated scripts folder, confirmation for state changes).
