@@ -23,3 +23,24 @@ tzdata==2026.5
 # Validation and configuration
 pydantic==2.14.1
 pydantic-settings==2.16.0
+
+# --- Phase 2 (ZENO_PHASE2_ARCHITECTURE.md section 7) ---
+# Vision needs no new package: llama-cpp-python ships the Moondream, Qwen2.5-VL and
+# MTMD chat handlers. Only the model and mmproj files are needed (see setup --vision).
+
+# Module A: tools (web, network, SSH, MQTT)
+httpx==0.28.1
+selectolax==1.0.1
+icmplib==3.0.4
+psutil==7.2.2
+asyncssh==2.24.1
+aiomqtt==2.5.1
+
+# Module C: vision intake (decode, size limits, downscale)
+pillow==13.0.0
+
+# Module D: voice (speech-to-text, text-to-speech, voice activity detection)
+numpy==2.5.4
+pywhispercpp==1.5.1
+piper-tts==1.8.0
+webrtcvad-wheels==2.0.14.post1

@@ -7,12 +7,19 @@
   .\setup.ps1 -Cuda                # NVIDIA GPU build, prebuilt CUDA 12.4 wheel
   .\setup.ps1 -Cuda -CudaVersion cu121
   .\setup.ps1 -Cuda -FromSource    # compile against the installed CUDA Toolkit
+
+.EXAMPLE
+  .\setup.ps1 -Vision -Voice       # also download the Phase 2 model files into models\
+  .\setup.ps1 -VoiceExtra          # also install the optional Kokoro / faster-whisper adapters
 #>
 param(
   [switch]$Cuda,
   [ValidateSet('cu121', 'cu122', 'cu123', 'cu124', 'cu125')]
   [string]$CudaVersion = 'cu124',
-  [switch]$FromSource
+  [switch]$FromSource,
+  [switch]$Vision,
+  [switch]$Voice,
+  [switch]$VoiceExtra
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
@@ -29,6 +36,10 @@ if (-not (Test-Path $venvPython)) {
 & $venvPython -m pip install --upgrade pip
 & $venvPython -m pip install -r requirements-dev.txt
 if ($LASTEXITCODE -ne 0) { throw 'Dependency install failed.' }
+if ($VoiceExtra) {
+  & $venvPython -m pip install -r requirements-voice-extra.txt
+  if ($LASTEXITCODE -ne 0) { throw 'Optional voice adapters failed to install.' }
+}
 
 if ($Cuda) {
   Write-Host "Switching llama-cpp-python to the CUDA build ..."
@@ -42,6 +53,23 @@ if ($Cuda) {
       --extra-index-url https://pypi.org/simple
   }
   if ($LASTEXITCODE -ne 0) { throw 'CUDA build of llama-cpp-python failed; see "CPU vs CUDA" in CLAUDE.md.' }
+}
+
+# Model files are only fetched when asked for, from the list in model-downloads.txt.
+$groups = @(); if ($Vision) { $groups += 'vision' }; if ($Voice) { $groups += 'voice' }
+if ($groups.Count) {
+  New-Item -ItemType Directory -Force -Path 'models' | Out-Null
+  $ProgressPreference = 'SilentlyContinue'  # the progress bar makes large downloads many times slower
+  foreach ($line in Get-Content 'model-downloads.txt') {
+    if (-not $line.Trim() -or $line.StartsWith('#')) { continue }
+    $group, $name, $url = -split $line
+    if ($groups -notcontains $group) { continue }
+    $target = Join-Path 'models' $name
+    if ((Test-Path $target) -and (Get-Item $target).Length -gt 0) { Write-Host "have   $target"; continue }
+    Write-Host "fetch  $target"
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile "$target.part"
+    Move-Item -Force "$target.part" $target
+  }
 }
 
 & $venvPython -c "import llama_cpp; print('llama.cpp', llama_cpp.__version__, '| GPU offload:', llama_cpp.llama_supports_gpu_offload())"
