@@ -6,7 +6,7 @@ import typing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -18,6 +18,18 @@ class Risk(StrEnum):
     """Only looks: runs without asking."""
     MUTATING = "mutating"
     """Changes something: needs the owner's explicit approval every time."""
+    PRIVILEGED = "privileged"
+    """Acts with the owner's own reach (e.g. a shell on another machine): approval
+    every time, and never offered to proactive runs."""
+
+
+Origin = Literal["chat", "proactive"]
+"""Who started a run: the owner chatting, or Zeno acting on something it noticed."""
+
+
+def available_in(risk: Risk, origin: Origin) -> bool:
+    """PRIVILEGED tools exist only in runs the owner started."""
+    return origin == "chat" or risk is not Risk.PRIVILEGED
 
 
 class ToolArgs(BaseModel):

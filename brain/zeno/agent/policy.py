@@ -6,7 +6,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from zeno.agent.tools.base import Origin as Origin
 from zeno.agent.tools.base import Risk
+from zeno.agent.tools.base import available_in as available_in
 
 
 def needs_approval(risk: Risk) -> bool:

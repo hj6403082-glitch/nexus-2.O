@@ -4,7 +4,7 @@ import json
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from zeno.agent.tools.base import Risk, Tool, ToolDefinitionError
+from zeno.agent.tools.base import Origin, Risk, Tool, ToolDefinitionError, available_in
 
 
 class UnknownToolError(KeyError):
@@ -48,6 +48,11 @@ class ToolRegistry:
     def __len__(self) -> int:
         return len(self._tools)
 
+    def for_origin(self, origin: Origin) -> "ToolRegistry":
+        """The tools a run started by ``origin`` may use. Tools left out are not in the
+        prompt or the step grammar, so the model cannot even name them."""
+        return ToolRegistry(t for t in self._tools.values() if available_in(t.risk, origin))
+
     def instructions(self) -> str:
         """The tool section of the system prompt. Deterministic for a given registry."""
         lines = [
@@ -62,14 +67,17 @@ class ToolRegistry:
             return "\n".join(lines)
         lines.append("Tools:")
         for item in self._tools.values():
-            note = (
-                "changes state, needs the owner's approval"
-                if item.risk is Risk.MUTATING
-                else "read-only"
-            )
+            note = _NOTES[item.risk]
             lines.append(f"- {item.name} ({note}): {' '.join(item.description.split())}")
             lines.append(f"  args: {json.dumps(_arg_schema(item))}")
         return "\n".join(lines)
+
+
+_NOTES = {
+    Risk.READ_ONLY: "read-only",
+    Risk.MUTATING: "changes state, needs the owner's approval",
+    Risk.PRIVILEGED: "privileged, needs the owner's approval every time",
+}
 
 
 def _arg_schema(item: Tool[Any]) -> dict[str, Any]:
