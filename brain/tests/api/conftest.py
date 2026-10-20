@@ -98,10 +98,15 @@ Decide = Callable[[dict[str, Any]], dict[str, Any] | None]
 
 
 def turn(
-    ws: WebSocketTestSession, text: str, *, turn_id: str = "t1", decide: Decide | None = None
+    ws: WebSocketTestSession,
+    text: str,
+    *,
+    turn_id: str = "t1",
+    decide: Decide | None = None,
+    **extra: Any,
 ) -> list[dict[str, Any]]:
     """Send one chat message and collect frames until its ``done`` frame."""
-    send(ws, type="chat", id=turn_id, text=text)
+    send(ws, type="chat", id=turn_id, text=text, **extra)
     frames = []
     while True:
         frame = receive(ws)

@@ -1,7 +1,7 @@
 import type { AIRequest } from './server';
 import { validateCommand, type StreamEvent } from './protocol';
 import { EXAMPLES, systemPrompt } from './persona';
-export const aiProvider = () => process.env.AI_PROVIDER === 'grok' ? 'grok' : process.env.AI_PROVIDER === 'gemini' ? 'gemini' : process.env.AI_PROVIDER === 'ollama' ? 'ollama' : process.env.XAI_API_KEY ? 'grok' : process.env.GEMINI_API_KEY ? 'gemini' : 'ollama';
+export const aiProvider = () => process.env.AI_PROVIDER === 'zeno' ? 'zeno' : process.env.AI_PROVIDER === 'grok' ? 'grok' : process.env.AI_PROVIDER === 'gemini' ? 'gemini' : process.env.AI_PROVIDER === 'ollama' ? 'ollama' : process.env.XAI_API_KEY ? 'grok' : process.env.GEMINI_API_KEY ? 'gemini' : 'ollama';
 // Ollama listens on this computer. OLLAMA_URL is Zeno's own override; Ollama's
 // OLLAMA_HOST is a bind address (often 0.0.0.0) and is deliberately not reused.
 export const ollamaUrl = () => (process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/+$/, '');

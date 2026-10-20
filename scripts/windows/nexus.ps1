@@ -3,7 +3,8 @@
 #   1. installs Node.js via winget if missing (first run only),
 #   2. installs dependencies and builds Zeno when the code changed,
 #   3. starts the Zeno engine hidden in the background on 127.0.0.1:3001,
-#   4. starts the Ollama app if it is installed but not running,
+#   4. starts the AI brain if it is not running: Zeno's own Python brain
+#      (brain\, when .env.local says AI_PROVIDER=zeno) or the Ollama app,
 #   5. opens Zeno in its own app window (Edge/Chrome app mode, no tabs or address bar),
 #   6. creates Desktop and Start-menu shortcuts with the Zeno icon.
 # Everything stays on this computer; the engine only listens on loopback.
@@ -21,14 +22,17 @@ function Fail($text) { [System.Windows.MessageBox]::Show($text, 'Zeno', 'OK', 'W
 function EngineUp {
   try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri "${Url}api/ai/status"; return $r.StatusCode -lt 500 } catch { return $false }
 }
-function EnginePids {
-  try { return @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique) } catch { return @() }
+function EnginePids([int]$OnPort = $Port) {
+  try { return @(Get-NetTCPConnection -LocalPort $OnPort -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique) } catch { return @() }
 }
 
 if ($Stop) {
   $pids = EnginePids
   foreach ($id in $pids) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
   if ($pids.Count) { Say 'Engine stopped.' } else { Say 'The engine was not running.' }
+  $brainPids = EnginePids 8765
+  foreach ($id in $brainPids) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+  if ($brainPids.Count) { Say "Zeno's brain stopped." }
   exit 0
 }
 
@@ -86,11 +90,28 @@ if (-not (EngineUp)) {
   }
 }
 
-# 4. The AI brain: start Ollama if it is installed but not running.
-try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri 'http://127.0.0.1:11434/api/tags' | Out-Null }
-catch {
-  $ollama = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama app.exe'
-  if (Test-Path $ollama) { Start-Process -FilePath $ollama -WindowStyle Hidden }
+# 4. The AI brain: Zeno's own brain when .env.local selects it, otherwise Ollama.
+$provider = ''
+if (Test-Path '.env.local') { $match = Select-String -Path '.env.local' -Pattern '^\s*AI_PROVIDER\s*=\s*(\w+)' | Select-Object -First 1; if ($match) { $provider = $match.Matches[0].Groups[1].Value } }
+if ($provider -eq 'zeno') {
+  try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri 'http://127.0.0.1:8765/v1/status' | Out-Null }
+  catch {
+    $python = Join-Path $Root 'brain\.venv\Scripts\python.exe'
+    if (-not (Test-Path $python)) { Say "Zeno's brain is not set up yet: run brain\setup.ps1 once. Ask Zeno will say so until then." }
+    else {
+      Say "Starting Zeno's brain (memory and model)..."
+      $brainLine = 'cmd /c ""' + $python + '" -m zeno serve > "' + (Join-Path $LogDir 'brain.log') + '" 2>&1"'
+      $brainRunner = New-Object -ComObject WScript.Shell
+      $brainRunner.CurrentDirectory = Join-Path $Root 'brain'
+      $brainRunner.Run($brainLine, 0, $false) | Out-Null
+    }
+  }
+} else {
+  try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri 'http://127.0.0.1:11434/api/tags' | Out-Null }
+  catch {
+    $ollama = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama app.exe'
+    if (Test-Path $ollama) { Start-Process -FilePath $ollama -WindowStyle Hidden }
+  }
 }
 
 # 6. Shortcuts with the Zeno icon (created once; they point back at this launcher).

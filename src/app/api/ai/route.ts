@@ -5,6 +5,7 @@ import { modules } from '@/lib/modules';
 import { aiProvider, streamOllama } from '@/ai/ollama';
 import { withModelRetry } from '@/ai/retry';
 import { streamGrok } from '@/ai/grok';
+import { streamZeno } from '@/ai/zenoBrain';
 import { EXAMPLES, PERSONA } from '@/ai/persona';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
   active++;
   const abort = new AbortController();
   const cancel = () => abort.abort(); request.signal.addEventListener('abort', cancel, { once: true });
-  const timer = setTimeout(cancel, provider === 'ollama' ? 180000 : 60000);
+  // Zeno's brain may wait up to two minutes for the owner to approve an action.
+  const timer = setTimeout(cancel, provider === 'zeno' ? 300000 : provider === 'ollama' ? 180000 : 60000);
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
       try {
         if (provider === 'ollama') { for await (const event of streamOllama(input, abort.signal)) send(event); return; }
         if (provider === 'grok') { for await (const event of streamGrok(input, abort.signal)) send(event); return; }
+        if (provider === 'zeno') { for await (const event of streamZeno(input, abort.signal)) send(event); return; }
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
         const response = await withModelRetry(() => ai.models.generateContentStream({ model,
           contents: [...EXAMPLES, ...input.messages].map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.text }] })),
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
         else send({ type: 'done' });
       } catch (error) {
         if (!abort.signal.aborted) {
-          if (provider === 'ollama' || provider === 'grok') { send({ type: 'error', message: readable(error, provider === 'ollama' ? 'The local model is unavailable. Make sure the Ollama app is running, then retry.' : 'Grok could not finish this request. Check your connection and try again.') }); return; }
+          if (provider === 'ollama' || provider === 'grok' || provider === 'zeno') { send({ type: 'error', message: readable(error, provider === 'ollama' ? 'The local model is unavailable. Make sure the Ollama app is running, then retry.' : provider === 'zeno' ? 'Zeno\'s brain is unavailable. Make sure `python -m zeno` is running, then retry.' : 'Grok could not finish this request. Check your connection and try again.') }); return; }
           const status = Number((error as { status?: number })?.status);
           send({ type: 'error', message: status === 503 ? 'Gemini is temporarily overloaded. Your key is connected; please retry shortly or use the local Ollama option.' : status === 429 ? 'Gemini quota or rate limit reached. Check your Google AI billing and limits, then retry.' : status === 401 || status === 403 ? 'Gemini rejected the key. Check GEMINI_API_KEY and its API permissions.' : status === 404 ? 'The configured model is unavailable. Check GEMINI_MODEL in .env.local.' : 'Gemini could not finish this request. Check your connection and try again.' });
         } else if (!request.signal.aborted) {

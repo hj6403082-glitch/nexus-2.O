@@ -15,6 +15,7 @@ zeno-profile.json
 # Zeno Python brain
 brain/.venv/
 brain/data/
+brain/models/
 brain/.env
 *.gguf
 __pycache__/

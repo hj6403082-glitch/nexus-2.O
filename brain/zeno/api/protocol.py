@@ -30,6 +30,8 @@ class ChatFrame(_Inbound):
     type: Literal["chat"]
     id: TurnId
     text: str = Field(min_length=1)
+    context: str = ""
+    """What the client is showing, for this turn's prompt only."""
 
 
 class ApprovalFrame(_Inbound):
@@ -49,7 +51,7 @@ _INBOUND: TypeAdapter[ChatFrame | ApprovalFrame | CancelFrame] = TypeAdapter(Inb
 
 
 def parse_inbound(
-    raw: str, *, max_bytes: int, max_chars: int
+    raw: str, *, max_bytes: int, max_chars: int, max_context_chars: int = 0
 ) -> ChatFrame | ApprovalFrame | CancelFrame:
     if len(raw.encode("utf-8")) > max_bytes:
         raise ProtocolError("frame_too_large", f"Frames are limited to {max_bytes} bytes.")
@@ -63,6 +65,10 @@ def parse_inbound(
         raise ProtocolError("invalid_frame", _first_problem(error)) from None
     if isinstance(frame, ChatFrame) and len(frame.text) > max_chars:
         raise ProtocolError("invalid_frame", f"Messages are limited to {max_chars} characters.")
+    if isinstance(frame, ChatFrame) and len(frame.context) > max_context_chars:
+        raise ProtocolError(
+            "invalid_frame", f"Context is limited to {max_context_chars} characters."
+        )
     return frame
 
 

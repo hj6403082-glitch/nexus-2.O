@@ -6,7 +6,10 @@ export type Command = { type: 'open'; module: ModuleId } | { type: 'rotate'; dir
   // Local-only: produced by the phrase matcher, never accepted from the model stream.
   | { type: 'website'; url: string; label: string } | { type: 'destination'; destination: Destination };
 export type Turn = { id: string; role: 'user' | 'assistant'; text: string; interrupted?: boolean; failed?: boolean; createdAt: number };
-export type StreamEvent = { type: 'text'; text: string } | { type: 'command'; command: Command } | { type: 'error'; message: string } | { type: 'done' };
+// A state-changing action the Zeno brain wants to take; it waits for the owner's yes or no.
+export type Approval = { id: string; tool: string; description: string; args: Record<string, unknown>; timeout: number };
+export type StreamEvent = { type: 'text'; text: string } | { type: 'command'; command: Command } | { type: 'error'; message: string } | { type: 'done' }
+  | { type: 'approval'; approval: Approval } | { type: 'decided'; id: string; approved: boolean };
 export const isModule = (value: unknown): value is ModuleId => typeof value === 'string' && modules.some(m => m.id === value);
 export function validateCommand(value: unknown): Command | null {
   if (!value || typeof value !== 'object') return null;
@@ -18,6 +21,13 @@ export function validateCommand(value: unknown): Command | null {
   if (c.type === 'transform' && (c.form === 'human' || c.form === 'spatial')) return { type: 'transform', form: c.form };
   if (c.type === 'youtube' && typeof c.query === 'string' && c.query.length > 0 && c.query.length <= 200) return { type: 'youtube', query: c.query };
   return null;
+}
+export function validateApproval(value: unknown): Approval | null {
+  if (!value || typeof value !== 'object') return null;
+  const a = value as Record<string, unknown>;
+  if (typeof a.id !== 'string' || !a.id || a.id.length > 64 || typeof a.tool !== 'string' || typeof a.description !== 'string') return null;
+  if (!a.args || typeof a.args !== 'object' || Array.isArray(a.args) || typeof a.timeout !== 'number' || !(a.timeout > 0)) return null;
+  return { id: a.id, tool: a.tool.slice(0, 100), description: a.description.slice(0, 500), args: a.args as Record<string, unknown>, timeout: a.timeout };
 }
 export function matchCommand(text: string): Command | null {
   const t = text.toLowerCase().trim().replace(/^(?:hey\s+)?nexus[\s,:.!]*/, '').replace(/[.!?]+$/, '').trim();
@@ -61,6 +71,9 @@ export class EventDecoder {
       if (v.type === 'error' && typeof v.message === 'string') return { type: 'error', message: v.message };
       const command = v.type === 'command' ? validateCommand(v.command) : null;
       if (command) return { type: 'command', command };
+      const approval = v.type === 'approval' ? validateApproval(v.approval) : null;
+      if (approval) return { type: 'approval', approval };
+      if (v.type === 'decided' && typeof v.id === 'string' && typeof v.approved === 'boolean') return { type: 'decided', id: v.id, approved: v.approved };
       throw new Error('Unrecognized AI stream event.');
     });
   }

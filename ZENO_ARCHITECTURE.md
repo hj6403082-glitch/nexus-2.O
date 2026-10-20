@@ -98,8 +98,8 @@ Safety model (this pillar touches the owner's machine, so it is deliberately con
 
 ## 2. How the web app connects
 
-- New provider `AI_PROVIDER=zeno` in the web app: `src/ai/zenoBrain.ts` streams from `http://127.0.0.1:<port>/v1/chat`, which emits the **existing** NDJSON `StreamEvent` shape, so `EventDecoder`, the UI and the voice pipeline are unchanged.
-- `/v1/status` mirrors `ollamaStatus()` states (`offline | no-model | model-missing | ready`) so the existing status UI keeps working.
+- New provider `AI_PROVIDER=zeno` in the web app: `src/ai/zenoBrain.ts` keeps one chat socket to `ws://127.0.0.1:<port>/v1/chat/ws` per server process and turns its frames into the **existing** NDJSON `StreamEvent` shape (plus `approval` / `decided` events), so `EventDecoder`, the UI and the voice pipeline are unchanged. The brain keeps the conversation; the web app sends the newest message and what is on screen. Approvals come back through `POST /api/ai/approval` on the same socket.
+- `/v1/status` reports `starting | ready | failed`; `zenoStatus()` maps it (and an unreachable brain to `offline`) onto the shape the existing status UI reads.
 - UI commands (`transform`, `open`, …) become ReAct tools whose results are emitted as `command` events, validated by the existing `validateCommand`.
 - The launcher (`scripts/windows/nexus.ps1`) later starts the Python brain instead of the Ollama app.
 

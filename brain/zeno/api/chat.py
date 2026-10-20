@@ -64,6 +64,7 @@ class ChatSession:
                         text,
                         max_bytes=self.settings.max_frame_bytes,
                         max_chars=self.settings.chat_max_chars,
+                        max_context_chars=self.settings.chat_max_context_chars,
                     )
                 except ProtocolError as error:
                     await self._error(error.code, error.message)
@@ -96,7 +97,9 @@ class ChatSession:
             await self.send({"type": "command", "turn": turn, "command": command})
 
         try:
-            events = self.orchestrator.respond(self.conversation, frame.text, emit=emit)
+            events = self.orchestrator.respond(
+                self.conversation, frame.text, emit=emit, context=frame.context
+            )
             async with aclosing(events) as stream:
                 async for event in stream:
                     step = getattr(event, "step", step)

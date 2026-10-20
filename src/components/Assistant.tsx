@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Download, ExternalLink, History, Mic, MicOff, RefreshCw, Sparkles, Square, Trash2, Volume2, VolumeX, X } from 'lucide-react';
+import { ArrowUp, Check, Download, ExternalLink, History, Mic, MicOff, RefreshCw, Sparkles, Square, Trash2, Volume2, VolumeX, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAssistant, voiceSignal } from '@/stores/assistant';
 import { useNexus } from '@/stores/nexus';
@@ -45,6 +45,7 @@ export function Assistant({ controller }: { controller: AssistantController }) {
       <div ref={end} />
     </div>
     {state.error && <div className="assistant-error" role="alert">{state.error}</div>}
+    {state.approval && <div className="assistant-setup approval-card" role="alertdialog" aria-label="Zeno needs your approval"><strong>Zeno wants to use {state.approval.tool}. Allow it?</strong><p>{state.approval.description}</p>{Object.keys(state.approval.args).length > 0 && <p><code>{JSON.stringify(state.approval.args).slice(0, 300)}</code></p>}<div className="setup-actions"><button className="setup-primary" onClick={() => void controller.decide(true)}><Check size={12} /> Approve</button><button onClick={() => void controller.decide(false)}><X size={12} /> Deny</button></div></div>}
     {state.pull ? <div className="assistant-setup brain-download" role="status"><strong>Downloading {state.pull.model}</strong><p>{state.pull.status}{state.pull.percent !== null ? ` · ${state.pull.percent}%` : ''}. Keep Zeno open; module commands work meanwhile.</p><div className="brain-progress"><i style={{ width: `${state.pull.percent ?? 4}%` }} /></div></div>
       : (state.configured === false || state.brain === 'model-missing') && <div className="assistant-setup"><strong>{state.brain === 'model-missing' ? 'Running on a backup model.' : state.brain === 'no-model' ? 'One step left: download the AI brain.' : 'Connect your AI to ask questions.'}</strong><p>{state.setup}{state.configured ? '' : ' Module commands work now.'}</p><div className="setup-actions">{state.provider === 'ollama' && (state.brain === 'no-model' || state.brain === 'model-missing') && <button className="setup-primary" onClick={() => void controller.pullModel(state.wanted || state.model || 'qwen3:1.7b')}><Download size={12} /> Download {state.wanted || state.model || 'qwen3:1.7b'}</button>}<button onClick={() => void controller.refresh()}><RefreshCw size={12} /> Check connection</button></div></div>}
     {!state.messages.length && <div className="assistant-suggestions">{[state.memory.name ? 'What do you remember about me?' : 'Call me Boss', 'Tell me something mind-blowing', 'Open system'].map(q => <button key={q} onClick={() => void controller.send(q)}>{q}</button>)}</div>}

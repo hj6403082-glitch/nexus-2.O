@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     api_allowed_origins: list[str] = []
     """Browser origins allowed to open the chat socket. Empty: no browser pages."""
     chat_max_chars: int = Field(4000, ge=1)
+    chat_max_context_chars: int = Field(8000, ge=0)
+    """What the web app shows on screen, sent with each message (prompt only, never stored)."""
 
     @field_validator("senses_host")
     @classmethod

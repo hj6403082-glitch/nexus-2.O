@@ -1,8 +1,10 @@
 # Zeno brain — working rules
 
-This folder is Zeno's native Python brain. The plan it follows is
-[`ZENO_ARCHITECTURE.md`](../ZENO_ARCHITECTURE.md) (approved 2026-10-19). Read it
-before changing the design. The Next.js app in `../src` is a separate subsystem.
+This folder is Zeno's native Python brain. The plans it follows are
+[`ZENO_ARCHITECTURE.md`](../ZENO_ARCHITECTURE.md) (approved 2026-10-19) and
+[`ZENO_PHASE2_ARCHITECTURE.md`](../ZENO_PHASE2_ARCHITECTURE.md) (vision, voice,
+watchers, tools; approved 2026-10-20). Read them before changing the design.
+The Next.js app in `../src` is a separate subsystem.
 
 ## Locked decisions
 
@@ -32,6 +34,18 @@ Both create `brain/.venv` and install `requirements-dev.txt` (which includes
 
 Manual equivalent: `python -m venv .venv`, then
 `python -m pip install -r requirements-dev.txt`.
+
+Phase 2 model files are never downloaded silently. Ask for them with
+`-Vision` / `-Voice` (`--vision` / `--voice`): setup fetches the files listed in
+`model-downloads.txt` into `brain/models/` (git-ignored) and skips ones already
+there. `-VoiceExtra` (`--voice-extra`) installs the optional Kokoro and
+faster-whisper adapters from `requirements-voice-extra.txt`. Flags combine with
+`-Cuda`.
+
+Phase 2 runtimes are all native and CPU-first: llama.cpp also runs the vision model
+(no new package), whisper.cpp (`pywhispercpp`) does speech-to-text, and Piper (on
+onnxruntime) speaks. PyTorch must never be pulled in; `tests/test_environment.py`
+checks.
 
 ## CPU vs CUDA (moving to an NVIDIA machine)
 
@@ -68,6 +82,16 @@ On the GPU machine:
 
 To go back to CPU, rerun setup without the switch after
 `python -m pip uninstall -y llama-cpp-python`.
+
+Phase 2 on the GPU machine (not yet tried on real hardware; verify before relying
+on it):
+
+- Vision runs inside llama-cpp-python, so the CUDA build above covers it.
+- whisper.cpp: rebuild `pywhispercpp` with CUDA,
+  `GGML_CUDA=1 python -m pip install --force-reinstall --no-deps --no-cache-dir --no-binary pywhispercpp pywhispercpp==1.5.1`
+  (PowerShell: `$env:GGML_CUDA="1"` first). The base model is fast enough on CPU,
+  so this is optional.
+- Piper is fast on CPU; `onnxruntime-gpu` is not worth the extra CUDA/cuDNN setup.
 
 ## Testing
 
@@ -196,6 +220,13 @@ that other pillars' tests use instead of the real backend.
 - Tests: `tests/api/` uses the daemon with fakes through Starlette's `TestClient`
   (close every socket you open, or the client's exit waits forever);
   `test_real_boot.py` runs real pillars under real uvicorn.
+- `chat` frames may carry `context` (what the web app shows, up to
+  `ZENO_CHAT_MAX_CONTEXT_CHARS`). It joins that turn's prompt as data and is never
+  stored in the conversation or memory.
+- The web app's provider is `src/ai/zenoBrain.ts` (`AI_PROVIDER=zeno`), tested by
+  `tests/zeno.test.ts` in the Node suite (`npm test`). Node's built-in WebSocket
+  reports a refused handshake as a bare `error` (no close code), so the provider
+  asks `/v1/status` why.
 - Python's `LlamaGrammar.from_string` accepts grammars that llama.cpp's own parser
   rejects. Check new tool schemas with the tiny-GGUF test that validates the full
   tool grammar through the engine.
@@ -216,7 +247,8 @@ that other pillars' tests use instead of the real backend.
 
 - All brain code lives under `brain/`. Don't touch `../src` until the web-app
   integration step, and then keep the existing providers working.
-- Models (`*.gguf`) and runtime data (`brain/data/`) are never committed.
+- Models (`*.gguf`, everything in `brain/models/`) and runtime data (`brain/data/`)
+  are never committed.
 - Pin every dependency in `requirements*.txt`; bump deliberately and rerun the
   full suite.
 - One logical change per commit, with an imperative subject line.

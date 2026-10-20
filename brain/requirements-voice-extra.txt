@@ -1,0 +1,6 @@
+# Optional voice adapters (ZENO_PHASE2_ARCHITECTURE.md section 5). Not installed by default.
+#   Kokoro: text-to-speech matching the web app's voice.
+#   faster-whisper: speech-to-text fallback if pywhispercpp misbehaves on your platform.
+-r requirements.txt
+kokoro-onnx==0.6.1
+faster-whisper==1.2.1

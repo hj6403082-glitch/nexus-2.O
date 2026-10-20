@@ -88,3 +88,4 @@ def test_orchestrator_defaults() -> None:
     assert settings.script_timeout == 30.0
     assert settings.script_max_output == 4000
     assert settings.chat_max_chars == 4000
+    assert settings.chat_max_context_chars == 8000
