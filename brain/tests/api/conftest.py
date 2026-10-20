@@ -22,6 +22,8 @@ def brain_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "audit_log_path": tmp_path / "audit" / "agent.jsonl",
         "api_token_file": tmp_path / "api-token",
         "scripts_dir": tmp_path / "scripts",
+        "ssh_hosts_file": tmp_path / "ssh_hosts.json",
+        "mqtt_file": tmp_path / "mqtt.json",
         "heartbeat_interval": 0.2,
         "heartbeat_timeout": 1.0,
         "memory_min_similarity": 0.2,

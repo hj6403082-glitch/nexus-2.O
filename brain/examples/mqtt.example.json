@@ -1,0 +1,19 @@
+{
+  "broker": {"host": "127.0.0.1", "port": 1883, "username": "zeno", "password_env": "ZENO_MQTT_PASSWORD"},
+  "read": [
+    {"name": "kitchen.climate", "topic": "zigbee2mqtt/kitchen_sensor"},
+    {"name": "door.front", "topic": "zigbee2mqtt/front_door"}
+  ],
+  "actuators": [
+    {
+      "name": "kitchen_light",
+      "description": "The kitchen ceiling light.",
+      "topic": "zigbee2mqtt/kitchen_light/set",
+      "qos": 1,
+      "payload": {
+        "state": {"type": "enum", "values": ["ON", "OFF"]},
+        "brightness": {"type": "number", "min": 0, "max": 254, "integer": true, "required": false}
+      }
+    }
+  ]
+}

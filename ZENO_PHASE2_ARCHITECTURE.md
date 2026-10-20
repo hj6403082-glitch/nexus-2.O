@@ -1,6 +1,6 @@
 # Zeno Phase 2: J.A.R.V.I.S.-level augmentation
 
-**Status:** approved by Boss 2026-10-20 with the defaults in section 9. Step 2 (dependencies and setup) done; modules follow in the order of section 8.
+**Status:** approved by Boss 2026-10-20 with the defaults in section 9. Step 2 (dependencies and setup) done. Module A (tools) built; the rest follow in the order of section 8.
 **Builds on:** [`ZENO_ARCHITECTURE.md`](ZENO_ARCHITECTURE.md) and the merged pillars in `brain/`.
 
 Phase 2 adds four capabilities: sight, voice, proactive watchers, and a larger set of tools. The aim is that Zeno can notice things and speak up on its own, not only answer when asked. The rules from Phase 1 still hold:
@@ -126,7 +126,7 @@ The four modules share four foundations. Each foundation is built inside the fir
 - Output is capped and there is a timeout.
 
 **MQTT actuation:**
-- Actuators come from `data/actuators.json`, each with a topic, a payload schema, QoS and a description.
+- Actuators come from `data/mqtt.json` (with the broker and the readable topics), each with a topic, a payload schema, QoS and a description.
 - The schema is a **restricted subset**: enum, bounded number, bool and short string. It's compiled into a Pydantic model, so the grammar constrains the values and `light.set(brightness=900)` can't even be generated.
 - Publishing uses `aiomqtt`.
 

@@ -11,6 +11,7 @@ import asyncssh
 import pytest
 from pydantic import ValidationError
 
+from zeno.agent.registry import ToolRegistry
 from zeno.agent.tools.base import Risk, Tool
 from zeno.agent.tools.ssh import SshConfig, load_ssh_config, ssh_tools
 
@@ -182,3 +183,10 @@ async def test_an_unknown_host_key_is_refused(tmp_path: Path, server: Server) ->
     with pytest.raises(ValueError, match="could not connect"):
         await tool.invoke(args(tool, host="pi", command="uptime"))
     assert server.commands == []
+
+
+def test_proactive_runs_never_see_ssh_run(tmp_path: Path, server: Server) -> None:
+    registry = ToolRegistry([ssh_run(write_config(tmp_path, server))])
+    assert "ssh_run" in registry.for_origin("chat")
+    assert "ssh_run" not in registry.for_origin("proactive")
+    assert "ssh_run" not in registry.for_origin("proactive").instructions()

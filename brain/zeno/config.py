@@ -69,6 +69,31 @@ class Settings(BaseSettings):
     chat_max_context_chars: int = Field(8000, ge=0)
     """What the web app shows on screen, sent with each message (prompt only, never stored)."""
 
+    # Phase 2 tools. Each reaches outside this PC, so each is off until configured.
+    network_tools: bool = False
+    """Offer ping, DNS lookup, single-port check and interface status."""
+    web_search_url: str | None = None
+    """Base URL of your SearXNG instance (JSON output enabled); None: no web search."""
+    web_fetch: bool = False
+    """Let the agent read web pages (public addresses only)."""
+    web_fetch_allow_lan: bool = False
+    """Also allow pages on your private network (never this PC itself)."""
+    web_fetch_max_bytes: int = Field(2_000_000, ge=1024)
+    web_fetch_timeout: float = Field(10.0, gt=0.0)
+    ssh_hosts_file: Path = Path("data/ssh_hosts.json")
+    """Machines ssh_run may reach; no file, no tool. Needs a known_hosts file."""
+    ssh_command_timeout: float = Field(20.0, gt=0.0)
+    ssh_max_output: int = Field(4000, ge=100)
+    mqtt_file: Path = Path("data/mqtt.json")
+    """Broker, readable topics and actuators; no file, no MQTT."""
+
+    @field_validator("web_search_url")
+    @classmethod
+    def _web_address(cls, url: str | None) -> str | None:
+        if url is not None and not url.startswith(("http://", "https://")):
+            raise ValueError("web_search_url must start with http:// or https://")
+        return url
+
     @field_validator("senses_host")
     @classmethod
     def _loopback_only(cls, host: str) -> str:

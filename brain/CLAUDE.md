@@ -180,7 +180,7 @@ that other pillars' tests use instead of the real backend.
 
 ## Agent (ReAct tools)
 
-- A tool is `@tool(risk=Risk.READ_ONLY | Risk.MUTATING, timeout=...)` on
+- A tool is `@tool(risk=Risk.READ_ONLY | Risk.MUTATING | Risk.PRIVILEGED, timeout=...)` on
   `async def name(args: SomeArgs) -> str`, where `SomeArgs` subclasses `ToolArgs`
   (unknown fields refused). The docstring is what the model reads. Tools that need a
   dependency are built by a factory (`memory_tools(manager)`), never looked up by name.
@@ -194,7 +194,23 @@ that other pillars' tests use instead of the real backend.
 - Every step goes to the audit log (`JsonlAuditLog`, append-only, mode 600). If a
   record cannot be written the run raises `AuditError` before acting.
 - `tests/agent/test_safety.py` fails on `eval`, `exec`, `__import__`, `importlib`,
-  `os.system` or any `shell=` argument anywhere in `zeno/agent/`.
+  `os.system` or any `shell=` argument anywhere in `zeno/agent/`, and when an outbound
+  network library (`httpx`, `httpcore`, `icmplib`, `asyncssh`, `aiomqtt`) is imported
+  outside its own module.
+- Risk tiers: READ_ONLY runs without asking; MUTATING and PRIVILEGED need the owner's
+  approval every time; PRIVILEGED tools (`ssh_run`) are also left out of
+  `registry.for_origin("proactive")`, so a run Zeno starts on its own can't name them.
+- Phase 2 tools are off until configured (`zeno/daemon.py::_outbound_tools`):
+  `ZENO_NETWORK_TOOLS` (ping, DNS, one-port check, interfaces), `ZENO_WEB_SEARCH_URL`
+  (SearXNG), `ZENO_WEB_FETCH` (pages), `data/ssh_hosts.json` (`ssh_run`) and
+  `data/mqtt.json` (MQTT sense, `mqtt_read`, `actuate_<name>`). Examples live in
+  `examples/`.
+- `fetch_page` checks addresses inside its own httpcore network backend, at connect
+  time, for every redirect hop: public addresses only (LAN optional), never loopback
+  or link-local, and a name that resolves to any refused address is refused.
+- Arguments that name configured things (SSH host aliases, MQTT read names, actuator
+  enums and integer ranges under 256 values) are `Literal`s, so the grammar itself
+  holds the model to them. Float and string bounds are enforced by validation.
 - The grammar converter in `zeno/inference/grammar.py` keeps declared field order
   (so `thought` is generated before `action`) and forbids raw control characters in
   strings. Keep both when touching it.
@@ -239,6 +255,11 @@ that other pillars' tests use instead of the real backend.
   arguments; the script runner only runs files in `brain/scripts/`.
 - State-changing tools require owner confirmation; every tool call goes to the
   audit log.
+- The one place a model-written command reaches a shell is `ssh_run`, on a host the
+  owner listed, with key auth and strict known_hosts, approved each time, and never
+  in proactive runs.
+- Secrets never go in the config files: the MQTT password comes from the environment
+  variable that `password_env` names.
 - Tool output, memories and device data are untrusted data, never instructions.
 - No secrets in the repo or in logs. `.env` is git-ignored; `.env.example` holds
   names only.
