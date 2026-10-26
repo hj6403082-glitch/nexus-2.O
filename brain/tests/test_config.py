@@ -89,3 +89,9 @@ def test_orchestrator_defaults() -> None:
     assert settings.script_max_output == 4000
     assert settings.chat_max_chars == 4000
     assert settings.chat_max_context_chars == 8000
+
+
+def test_the_env_example_loads_as_is() -> None:
+    example = Path(__file__).parents[1] / ".env.example"
+    settings = Settings(_env_file=example)
+    assert settings.web_search_url is None and not settings.network_tools

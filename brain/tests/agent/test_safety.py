@@ -59,3 +59,35 @@ def test_only_the_script_runner_starts_processes() -> None:
             ):
                 starters.add(path.relative_to(AGENT_DIR).as_posix())
     assert starters == {"tools/scripts.py"}
+
+
+ZENO_DIR = AGENT_DIR.parent
+# Modules that open connections beyond this PC, and the only files allowed to use them.
+OUTBOUND = {
+    "httpx": {"agent/tools/web.py"},
+    "httpcore": {"agent/tools/web.py"},
+    "icmplib": {"agent/tools/network.py"},
+    "asyncssh": {"agent/tools/ssh.py"},
+    "aiomqtt": {"senses/mqtt.py"},
+    "paramiko": set(),
+    "requests": set(),
+    "urllib": set(),
+    "aiohttp": set(),
+}
+
+
+def test_outbound_network_libraries_stay_in_their_own_modules() -> None:
+    users: dict[str, set[str]] = {name: set() for name in OUTBOUND}
+    for path in sorted(ZENO_DIR.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names = [node.module]
+            for name in names:
+                root = name.split(".")[0]
+                if root in users:
+                    users[root].add(path.relative_to(ZENO_DIR).as_posix())
+    assert users == OUTBOUND

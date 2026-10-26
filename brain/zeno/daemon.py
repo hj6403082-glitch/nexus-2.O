@@ -13,7 +13,11 @@ from zeno.agent.audit import JsonlAuditLog
 from zeno.agent.tools import builtin_tools
 from zeno.agent.tools.base import Tool
 from zeno.agent.tools.devices import SensorCache
+from zeno.agent.tools.mqtt import mqtt_tools
+from zeno.agent.tools.network import network_tools
 from zeno.agent.tools.scripts import script_tools
+from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
+from zeno.agent.tools.web import FetchPolicy, web_tools
 from zeno.api.app import create_api
 from zeno.api.auth import load_or_create_token
 from zeno.config import Settings
@@ -29,6 +33,7 @@ from zeno.orchestrator import Orchestrator
 from zeno.senses.auth import DeviceAuth
 from zeno.senses.events import EventBus
 from zeno.senses.manager import ConnectionManager
+from zeno.senses.mqtt import MqttSense, load_mqtt_config
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +105,7 @@ class ZenoDaemon:
         self.devices = ConnectionManager()
         self.bus = EventBus(settings.event_queue_size)
         self.sensors = SensorCache()
+        self.mqtt: MqttSense | None = None
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
         self._lifecycle = asyncio.Lock()
@@ -159,6 +165,7 @@ class ZenoDaemon:
                 command_timeout=s.command_timeout,
             ),
             *script_tools(s.scripts_dir, timeout=s.script_timeout, max_output=s.script_max_output),
+            *await self._outbound_tools(),
         ]
         orchestrator = Orchestrator(
             engine=engine,
@@ -176,6 +183,37 @@ class ZenoDaemon:
             auth=self.auth,
             devices=self.devices,
         )
+
+    async def _outbound_tools(self) -> list[Tool[Any]]:
+        """Phase 2 tools that reach beyond this PC; each needs its own configuration."""
+        s = self.settings
+        tools: list[Tool[Any]] = network_tools() if s.network_tools else []
+        fetch = None
+        if s.web_fetch:
+            fetch = FetchPolicy(
+                allow_lan=s.web_fetch_allow_lan,
+                max_bytes=s.web_fetch_max_bytes,
+                max_chars=s.agent_max_observation_chars,
+                timeout=s.web_fetch_timeout,
+            )
+        tools += web_tools(search_url=s.web_search_url, fetch=fetch)
+        ssh = await asyncio.to_thread(load_ssh_config, s.ssh_hosts_file)
+        if ssh is not None:
+            tools += ssh_tools(
+                ssh, command_timeout=s.ssh_command_timeout, max_output=s.ssh_max_output
+            )
+        mqtt = await asyncio.to_thread(load_mqtt_config, s.mqtt_file)
+        if mqtt is not None:
+            self.mqtt = MqttSense(mqtt, self.bus)
+            self._cleanups.append(self._stop_mqtt)
+            await self.mqtt.start()  # connects in the background; boot does not wait
+            tools += mqtt_tools(mqtt, self.mqtt, self.sensors)
+        return tools
+
+    async def _stop_mqtt(self) -> None:
+        if self.mqtt is not None:
+            await self.mqtt.stop()
+            self.mqtt = None
 
     async def stop(self) -> None:
         """Close device connections, stop the bus and free the models. Idempotent."""

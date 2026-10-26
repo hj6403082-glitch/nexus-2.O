@@ -35,5 +35,5 @@ packages = ["zeno"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["llama_cpp.*", "chromadb.*"]
+module = ["llama_cpp.*", "chromadb.*", "icmplib.*"]
 ignore_missing_imports = true
