@@ -5,7 +5,9 @@ This folder is Zeno's native Python brain. The plans it follows are
 [`ZENO_PHASE2_ARCHITECTURE.md`](../ZENO_PHASE2_ARCHITECTURE.md) (vision, voice,
 watchers, tools; approved 2026-10-20) and
 [`ZENO_LINUX_INTEGRATION.md`](../ZENO_LINUX_INTEGRATION.md) (systemd, telemetry,
-run_command, D-Bus; approved 2026-10-26). Read them before changing the design.
+run_command, D-Bus; approved 2026-10-26) and
+[`ZENO_OS_INTEGRATION.md`](../ZENO_OS_INTEGRATION.md) (the Windows half and the OS
+loader; approved 2026-10-26). Read them before changing the design.
 The Next.js app in `../src` is a separate subsystem.
 
 ## Locked decisions
@@ -196,7 +198,8 @@ that other pillars' tests use instead of the real backend.
 - Every step goes to the audit log (`JsonlAuditLog`, append-only, mode 600). If a
   record cannot be written the run raises `AuditError` before acting.
 - `tests/agent/test_safety.py` fails on `eval`, `exec`, `__import__`, `importlib`,
-  `os.system` or any `shell=` argument anywhere in `zeno/agent/`, and when an outbound
+  `os.system` or any `shell=` argument anywhere in `zeno/agent/` or `zeno/hostos/`,
+  and when an outbound
   network library (`httpx`, `httpcore`, `icmplib`, `asyncssh`, `aiomqtt`) is imported
   outside its own module.
 - Risk tiers: READ_ONLY runs without asking; MUTATING and PRIVILEGED need the owner's
@@ -249,26 +252,48 @@ that other pillars' tests use instead of the real backend.
   rejects. Check new tool schemas with the tiny-GGUF test that validates the full
   tool grammar through the engine.
 
-## Linux integration (Phase 3)
+## OS integration (Phase 3, Linux and Windows)
 
-- Off until `ZENO_LINUX_TOOLS=true` (telemetry, `notify_desktop`, `service_status`)
-  and, separately, `ZENO_RUN_COMMAND=true`; ignored on other systems
-  (`ZenoDaemon._linux_tools`). `dbus-fast` installs on Linux only.
-- `run_command` (`zeno/agent/tools/shell.py`) is PRIVILEGED. The pure policy in
-  `command_policy.py` splits the line itself (no shell) and refuses shell syntax,
-  code-running programs and catastrophic commands. It runs as the tool's
-  `precheck`, which the agent loop calls before approval: a refused call is
-  answered with its reason and never reaches the owner. It runs again just before
-  executing. Add a rule with a parametrized test and, for flag-shaped rules, a
-  hypothesis property test over spellings.
-- Only `tools/scripts.py` and `tools/shell.py` may start processes, and `shell.py`
-  only with `create_subprocess_exec` (safety test).
-- Service: `brain/linux/zeno.service` (systemd user unit, `Type=notify`,
-  `WatchdogSec=60`), installed by `linux/install-service.sh`. `zeno/systemd.py`
-  sends READY after boot, WATCHDOG from the event loop and STOPPING at shutdown;
-  it does nothing without `NOTIFY_SOCKET`.
-- D-Bus tests run against a private `dbus-daemon` the test starts; they never touch
-  the real desktop or systemd.
+- Off until `ZENO_OS_TOOLS=true` (telemetry, `notify_desktop`, `service_status`)
+  and, separately, `ZENO_RUN_COMMAND=true`. `agent/tools/os_loader.py` reads
+  `platform.system()` once and imports only `os_linux.py` or `os_windows.py`;
+  other systems get telemetry only. The same tool names and arguments on both,
+  except the runner: `run_command` (Linux) or `run_powershell` (Windows).
+- Isolation is tested: nothing in `os_linux.py` or `zeno/hostos/linux/` imports
+  Windows code and the reverse (`tests/hostos/test_os_loader.py`), and a boot on
+  one OS never loads the other's modules, `dbus_fast` or `winrt`.
+- Both runners are PRIVILEGED and refuse before approval through the tool's
+  `precheck` (which may be async and fails closed on error or after
+  `PRECHECK_TIMEOUT`). A refused call is answered with its reason and never reaches
+  the owner; the check runs again just before executing.
+  - Linux: `hostos/linux/command_policy.py` splits the line itself (no shell) and
+    refuses shell syntax, code-running programs and catastrophic commands.
+  - Windows: `hostos/windows/ps_parse.ps1` asks PowerShell's own parser for the
+    syntax tree (it parses, never runs) and `hostos/windows/ps_policy.py` refuses
+    anything outside a static subset (one pipeline, literal command names and
+    arguments, script blocks only as Where-/ForEach-Object filters) plus
+    catastrophic commands. The approved command runs with `-NoProfile`,
+    `-ExecutionPolicy Restricted` and Constrained Language Mode. This is the one
+    sanctioned way model-written text reaches PowerShell.
+  - Add a rule with a parametrized test and, for path or flag rules, a hypothesis
+    property test over spellings. Windows policy tests build trees with
+    `tests/windows/ps_trees.py`; `tests/windows/test_ps_parse.py` runs the same
+    commands through the real parser wherever PowerShell is installed (CI).
+- Only `agent/tools/scripts.py` and `hostos/process.py` may start processes, the
+  latter only with `create_subprocess_exec` (safety test). Each OS passes in how
+  to start and stop a process group (`hostos/linux/process.py`,
+  `hostos/windows/process.py`).
+- Services: `daemons/zeno.service` (systemd user unit, `Type=notify`,
+  `WatchdogSec=60`, installed by `daemons/install-service.sh`;
+  `hostos/linux/systemd.py` sends READY, WATCHDOG and STOPPING) and
+  `daemons/windows_setup.ps1` (a per-user Scheduled Task at logon, `RunLevel
+  Limited`, plus the `Zeno.Brain` toast identity under HKCU). Without a console
+  (pythonw) logs go to `data/logs/zeno.log`.
+- Tests mock D-Bus, WinRT, psutil and the runners, so both toolsets' tests run on
+  either OS; tests that need the real OS skip elsewhere. D-Bus integration tests use
+  a private `dbus-daemon`. Type-check both: `mypy zeno` and
+  `mypy --platform win32 zeno`. CI (`.github/workflows/brain-tests.yml`) runs
+  everything on Ubuntu and Windows.
 
 ## Safety rules
 
@@ -281,7 +306,9 @@ that other pillars' tests use instead of the real backend.
 - The one place a model-written command reaches a shell is `ssh_run`, on a host the
   owner listed, with key auth and strict known_hosts, approved each time, and never
   in proactive runs. `run_command` runs local programs without a shell, after the
-  command policy and the owner's approval.
+  command policy and the owner's approval. `run_powershell` hands PowerShell only
+  what its parser and the PowerShell policy accepted, after the owner's approval,
+  in Constrained Language Mode.
 - Secrets never go in the config files: the MQTT password comes from the environment
   variable that `password_env` names.
 - Tool output, memories and device data are untrusted data, never instructions.

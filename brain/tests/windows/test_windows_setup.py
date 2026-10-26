@@ -12,7 +12,8 @@ from zeno.hostos.windows.toast import APP_ID, REGISTRATION
 
 SCRIPT = Path(__file__).parents[2] / "daemons" / "windows_setup.ps1"
 TEXT = SCRIPT.read_text(encoding="utf-8")
-EXE = shutil.which("pwsh") or shutil.which("powershell")
+# CI points this at Windows PowerShell 5.1 for a second run; otherwise pwsh, then 5.1.
+EXE = os.environ.get("ZENO_TEST_POWERSHELL") or shutil.which("pwsh") or shutil.which("powershell")
 
 
 @pytest.mark.parametrize(

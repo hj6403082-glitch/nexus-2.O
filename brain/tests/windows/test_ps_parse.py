@@ -11,7 +11,8 @@ from zeno.hostos.process import CommandRefused
 from zeno.hostos.windows import powershell
 from zeno.hostos.windows.ps_policy import PsContext, PsTree, check_powershell
 
-EXE = shutil.which("pwsh") or shutil.which("powershell")
+# CI points this at Windows PowerShell 5.1 for a second run; otherwise pwsh, then 5.1.
+EXE = os.environ.get("ZENO_TEST_POWERSHELL") or shutil.which("pwsh") or shutil.which("powershell")
 pytestmark = pytest.mark.skipif(EXE is None, reason="needs PowerShell")
 CTX = PsContext(home="C:\\Users\\Boss", cwd="C:\\Users\\Boss\\projects", own_pid=4242)
 

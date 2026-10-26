@@ -2,6 +2,8 @@
 
 **Status:** approved by Boss 2026-10-26 with the defaults in section 9. Built; the code is the source of truth where details differ (noted inline).
 
+**Moved since:** `ZENO_OS_INTEGRATION.md` (the Windows half) reorganised these files. `run_command` and the D-Bus tools now live in `zeno/agent/tools/os_linux.py`. The policy, D-Bus and systemd modules live in `zeno/hostos/linux/`. `brain/linux/` is now `brain/daemons/`, and `ZENO_LINUX_TOOLS` is now `ZENO_OS_TOOLS`.
+
 Phase 3 makes Zeno a native administrator of the Linux machine it runs on:
 - it starts with the OS as a systemd service;
 - it reads system health, temperatures and processes;

@@ -1,0 +1,60 @@
+# Zeno's Python brain: lint, type-check and test on Linux and Windows.
+# The Windows job is the only place the Windows toolset (run_powershell, toasts,
+# the logon task script) runs on real Windows before it reaches a PC.
+name: brain-tests
+
+on:
+  push:
+    paths: ["brain/**", ".github/workflows/brain-tests.yml"]
+  pull_request:
+    paths: ["brain/**", ".github/workflows/brain-tests.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brain-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: brain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            brain/requirements.txt
+            brain/requirements-dev.txt
+      - name: Install
+        run: python -m pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+      - name: Type-check for Linux and for Windows
+        if: runner.os == 'Linux'
+        run: |
+          python -m mypy zeno
+          python -m mypy --platform win32 zeno
+      - name: PowerShell versions (the real-parser tests use these)
+        shell: pwsh
+        run: $PSVersionTable.PSVersion.ToString()
+      - name: Test
+        run: python -m pytest -q
+      - name: Test the PowerShell checks with Windows PowerShell 5.1 too
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:ZENO_TEST_POWERSHELL = (Get-Command powershell.exe).Source
+          python -m pytest -q tests/windows

@@ -1,6 +1,13 @@
 # Zeno Phase 3: Cross-Platform OS Integration (Windows + Linux)
 
-**Status:** draft. Waiting for Boss's approval. Section 10 lists the decisions this plan assumes; each one has a default.
+**Status:** approved by Boss 2026-10-26 with the defaults in section 10. Built in PR #21; the code is the source of truth where details differ. What changed while building:
+
+- **Toast identity.** `windows_setup.ps1` registers `Zeno.Brain` under `HKCU\Software\Classes\AppUserModelId` (a display name) instead of on a Start-menu shortcut. Writing a shortcut's AppUserModelID needs COM interop, and the registry key does the same job. The PowerShell fallback is unchanged.
+- **Async precheck.** Asking PowerShell's parser takes a process, so `Tool.precheck` may now be async. The loop awaits it with a 15 s limit (`PRECHECK_TIMEOUT`), and a check that hangs refuses.
+- **Explicit targets.** `Remove-Item`, `Remove-ItemProperty`, `Clear-Item` and `Stop-Process` must name what they act on. Fed from a pipeline (`gci C:\ | Remove-Item -Recurse`), the targets can't be checked, so the call is refused.
+- **Logs without a console.** Under `pythonw` (the logon task) logs go to `data/logs/zeno.log`, uvicorn's included.
+- **Windows PowerShell parse helper.** It loads only the one module it needs, from `$PSHOME`, and turns module auto-loading off, so parsing can never load a module from a user-writable folder.
+- **Not built.** `process_info` adds no Windows service name: psutil has no cheap PID-to-service lookup.
 
 Phase 3 makes Zeno a native administrator of the machine it runs on, whether that machine is Windows or Linux, from one codebase. The Linux half is already built (draft PR #21, design in `ZENO_LINUX_INTEGRATION.md`). This plan:
 - adds the Windows half;
