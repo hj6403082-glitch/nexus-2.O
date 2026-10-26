@@ -6,7 +6,7 @@ import typing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -53,13 +53,19 @@ class Tool(Generic[A]):
     risk: Risk
     timeout: float
     func: Callable[[A], Awaitable[str]]
+    precheck: Callable[[A], str | None] | None = None
+    """Runs before approval; a returned reason refuses the call without asking."""
 
     async def invoke(self, args: A) -> str:
         return await self.func(args)
 
 
 def tool(
-    name: str | None = None, *, risk: Risk, timeout: float = 10.0
+    name: str | None = None,
+    *,
+    risk: Risk,
+    timeout: float = 10.0,
+    precheck: Callable[[Any], str | None] | None = None,
 ) -> Callable[[Callable[[A], Awaitable[str]]], Tool[A]]:
     """Turn ``async def name(args: SomeArgs) -> str`` into a ``Tool``.
 
@@ -82,7 +88,7 @@ def tool(
             raise ToolDefinitionError(f"Tool {tool_name} needs a positive timeout.")
         # _args_model checked at runtime that the annotation is func's own args model.
         args_model = typing.cast("type[A]", _args_model(tool_name, func))
-        return Tool(tool_name, description, args_model, risk, timeout, func)
+        return Tool(tool_name, description, args_model, risk, timeout, func, precheck)
 
     return decorate
 

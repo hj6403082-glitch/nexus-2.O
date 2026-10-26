@@ -167,7 +167,13 @@ class ReActAgent:
                     break
                 yield ToolCall(run.step, item.name, arguments, item.risk)
 
-                if needs_approval(item.risk):
+                refusal = _precheck(item, args)
+                if refusal is not None:
+                    await run.record(
+                        "refused", {"tool": item.name, "args": arguments, "reason": refusal}
+                    )
+                    ok, content = False, f"Refused before asking the owner: {refusal}"
+                elif needs_approval(item.risk):
                     request = ApprovalRequest(
                         item.name, arguments, item.risk, step.thought, item.description
                     )
@@ -240,6 +246,17 @@ class _Run:
 
     async def record(self, kind: AuditKind, data: Mapping[str, Any]) -> None:
         await self._audit.record(AuditRecord(self._clock(), self.run_id, self.step, kind, data))
+
+
+def _precheck(item: Tool[Any], args: Any) -> str | None:
+    """The tool's own pre-approval check. A check that fails refuses (fail closed)."""
+    if item.precheck is None:
+        return None
+    try:
+        return item.precheck(args)
+    except Exception as error:
+        log.exception("Precheck of %s failed", item.name)
+        return f"the call could not be checked ({error.__class__.__name__})"
 
 
 async def _invoke(item: Tool[Any], args: ToolArgs) -> tuple[bool, str]:
