@@ -1,0 +1,34 @@
+# Zeno brain as a systemd user service. Install with: brain/linux/install-service.sh
+# (it fills in the real checkout path if it isn't ~/nexus-2.o).
+[Unit]
+Description=Zeno brain (local AI assistant)
+Documentation=https://github.com/hj6403082-glitch/nexus-2.o/blob/codex/nexus-spatial-human/ZENO_LINUX_INTEGRATION.md
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+WorkingDirectory=%h/nexus-2.o/brain
+ExecStart=%h/nexus-2.o/brain/.venv/bin/python -m zeno serve
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+# Loading a large model can take a while.
+TimeoutStartSec=300
+TimeoutStopSec=30
+# SIGTERM to Zeno first so it shuts down cleanly, then to anything left over.
+KillMode=mixed
+WatchdogSec=60
+
+# Hardening that works for user services. Check with:
+#   systemd-analyze --user security zeno
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target

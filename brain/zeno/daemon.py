@@ -34,6 +34,7 @@ from zeno.senses.auth import DeviceAuth
 from zeno.senses.events import EventBus
 from zeno.senses.manager import ConnectionManager
 from zeno.senses.mqtt import MqttSense, load_mqtt_config
+from zeno.systemd import SystemdNotifier
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ class ZenoDaemon:
         self.bus = EventBus(settings.event_queue_size)
         self.sensors = SensorCache()
         self.mqtt: MqttSense | None = None
+        self.notifier = SystemdNotifier.from_environment()
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
         self._lifecycle = asyncio.Lock()
@@ -130,9 +132,26 @@ class ZenoDaemon:
                 await self._unwind()
                 self.state, self.error = "failed", str(error)
                 log.error("Zeno failed to start: %s", error)
+                self.notifier.status(f"Zeno could not start: {error}")
                 raise BootError(str(error)) from error
             self.state = "ready"
+            self._start_watchdog()
+            self.notifier.ready("Zeno is ready")
             log.info("Zeno is ready.")
+
+    def _start_watchdog(self) -> None:
+        interval = self.notifier.watchdog_interval()
+        if interval is None:
+            return
+
+        async def ping() -> None:
+            # Pinging from the event loop itself: a frozen loop stops the pings.
+            while True:
+                self.notifier.watchdog()
+                await asyncio.sleep(interval / 3)
+
+        task = asyncio.create_task(ping(), name="zeno-watchdog")
+        self._cleanups.append(task.cancel)
 
     async def _boot(self) -> Services:
         s = self.settings
@@ -221,6 +240,7 @@ class ZenoDaemon:
             if self.state in ("stopped", "failed"):
                 return
             self.state = "stopping"
+            self.notifier.stopping()
             await self._unwind()
             self._services = None
             self.state = "stopped"
