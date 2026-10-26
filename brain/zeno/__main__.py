@@ -45,7 +45,10 @@ def main(argv: Sequence[str] | None = None, settings: Settings | None = None) ->
 
     configure_logging(settings)
     daemon = ZenoDaemon(settings)
-    asyncio.run(daemon.serve())
+    try:
+        asyncio.run(daemon.serve())
+    except KeyboardInterrupt:  # Ctrl+C: the server has already shut down cleanly
+        return 0
     if daemon.state == "failed":
         print(f"Zeno could not start: {daemon.error}", file=sys.stderr)
         return 1

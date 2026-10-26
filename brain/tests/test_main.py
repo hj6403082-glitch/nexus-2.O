@@ -48,3 +48,12 @@ def test_with_a_console_logs_go_to_stderr(tmp_path: Path) -> None:
     from zeno.__main__ import configure_logging
 
     assert configure_logging(brain_settings(tmp_path)) is None
+
+
+def test_ctrl_c_stops_quietly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def interrupted(coroutine: object) -> None:
+        coroutine.close()  # type: ignore[attr-defined]
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("zeno.__main__.asyncio.run", interrupted)
+    assert main(["serve"], brain_settings(tmp_path)) == 0
