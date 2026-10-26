@@ -6,31 +6,16 @@ with a plain reason instead of crashing.
 """
 
 import asyncio
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 from dbus_fast import BusType, Message, MessageType, Variant
 from dbus_fast.aio import MessageBus
 
-Scope = Literal["system", "user"]
-URGENCY = {"low": 0, "normal": 1, "critical": 2}
+from zeno.hostos.desktop import URGENCY, DesktopUnavailable, Scope, UnitState
+
+__all__ = ["DbusDesktop", "DesktopUnavailable", "UnitState"]
 _NOTIFY = ("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
 _SYSTEMD = ("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
-
-
-class DesktopUnavailable(Exception):
-    """The bus or the service on it can't be reached."""
-
-
-@dataclass(frozen=True, slots=True)
-class UnitState:
-    name: str
-    description: str
-    load: str
-    active: str
-    sub: str
-    since: float | None
-    """When it entered this state (Unix time), if systemd recorded it."""
 
 
 class DbusDesktop:

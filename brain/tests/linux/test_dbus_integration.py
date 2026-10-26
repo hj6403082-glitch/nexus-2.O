@@ -16,7 +16,7 @@ from dbus_fast.aio import MessageBus
 from dbus_fast.constants import PropertyAccess
 from dbus_fast.service import ServiceInterface, dbus_property, method
 
-from zeno.desktop.dbus import DbusDesktop, DesktopUnavailable
+from zeno.hostos.linux.dbus import DbusDesktop, DesktopUnavailable
 
 DAEMON = shutil.which("dbus-daemon")
 pytestmark = pytest.mark.skipif(DAEMON is None, reason="needs dbus-daemon")

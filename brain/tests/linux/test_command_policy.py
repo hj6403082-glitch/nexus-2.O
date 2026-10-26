@@ -11,7 +11,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from zeno.agent.tools.command_policy import CommandRefused, PolicyContext, check_command
+from zeno.hostos.linux.command_policy import CommandRefused, PolicyContext, check_command
 
 HOME = "/home/boss"
 LINKS = {"/usr/bin/sh": "/usr/bin/dash", "/usr/bin/editor": "/usr/bin/vim.basic"}

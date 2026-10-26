@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Installs Zeno as a systemd *user* service (runs as you, starts with your session).
-#   ./linux/install-service.sh            install, enable and start
-#   ./linux/install-service.sh --linger   also start at boot without logging in
-#   ./linux/install-service.sh --remove   stop, disable and delete the unit
+#   ./daemons/install-service.sh            install, enable and start
+#   ./daemons/install-service.sh --linger   also start at boot without logging in
+#   ./daemons/install-service.sh --remove   stop, disable and delete the unit
 # Logs: journalctl --user -u zeno -f
 set -euo pipefail
 BRAIN="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,7 +32,7 @@ mkdir -p "$UNIT_DIR"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 # The template assumes ~/nexus-2.o/brain; point it at this checkout instead.
-sed "s#%h/nexus-2.o/brain#$BRAIN#g" "$BRAIN/linux/zeno.service" > "$STAGE/zeno.service"
+sed "s#%h/nexus-2.o/brain#$BRAIN#g" "$BRAIN/daemons/zeno.service" > "$STAGE/zeno.service"
 if systemd-analyze --user verify "$STAGE/zeno.service" 2>&1 | grep -F "$STAGE/zeno.service"; then
   echo "The unit file has problems (above); not installing." >&2
   exit 1

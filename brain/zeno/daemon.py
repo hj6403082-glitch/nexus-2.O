@@ -13,18 +13,18 @@ from fastapi import FastAPI
 from zeno.agent.audit import JsonlAuditLog
 from zeno.agent.tools import builtin_tools
 from zeno.agent.tools.base import Tool
-from zeno.agent.tools.desktop import desktop_tools
 from zeno.agent.tools.devices import SensorCache
 from zeno.agent.tools.mqtt import mqtt_tools
 from zeno.agent.tools.network import network_tools
+from zeno.agent.tools.os_linux import CommandSettings, command_tools, desktop_tools
 from zeno.agent.tools.scripts import script_tools
-from zeno.agent.tools.shell import CommandSettings, shell_tools
 from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
 from zeno.agent.tools.telemetry import telemetry_tools
 from zeno.agent.tools.web import FetchPolicy, web_tools
 from zeno.api.app import create_api
 from zeno.api.auth import load_or_create_token
 from zeno.config import Settings
+from zeno.hostos.linux.systemd import SystemdNotifier
 from zeno.inference.base import InferenceEngine
 from zeno.inference.llama_cpp import LlamaCppEngine
 from zeno.memory.base import Embedder, VectorStore
@@ -38,7 +38,6 @@ from zeno.senses.auth import DeviceAuth
 from zeno.senses.events import EventBus
 from zeno.senses.manager import ConnectionManager
 from zeno.senses.mqtt import MqttSense, load_mqtt_config
-from zeno.systemd import SystemdNotifier
 
 log = logging.getLogger(__name__)
 
@@ -242,7 +241,7 @@ class ZenoDaemon:
         if sys.platform != "linux":
             log.warning("ZENO_LINUX_TOOLS / ZENO_RUN_COMMAND are ignored on %s", sys.platform)
             return []
-        from zeno.desktop.dbus import DbusDesktop  # dbus-fast is installed on Linux only
+        from zeno.hostos.linux.dbus import DbusDesktop  # dbus-fast is installed on Linux only
 
         tools: list[Tool[Any]] = []
         if s.linux_tools:
@@ -251,7 +250,7 @@ class ZenoDaemon:
             tools += telemetry_tools()
             tools += desktop_tools(desktop, per_hour=s.desktop_notify_per_hour)
         if s.run_command:
-            tools += shell_tools(
+            tools += command_tools(
                 CommandSettings(
                     roots=s.run_command_roots,
                     default_timeout=s.run_command_timeout,

@@ -1,4 +1,4 @@
-# Zeno brain as a systemd user service. Install with: brain/linux/install-service.sh
+# Zeno brain as a systemd user service. Install with: brain/daemons/install-service.sh
 # (it fills in the real checkout path if it isn't ~/nexus-2.o).
 [Unit]
 Description=Zeno brain (local AI assistant)

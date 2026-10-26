@@ -7,8 +7,8 @@ import pytest
 from pydantic import ValidationError
 
 from zeno.agent.tools.base import Risk, Tool
-from zeno.agent.tools.desktop import NotifyArgs, UnitArgs, desktop_tools
-from zeno.desktop.dbus import DesktopUnavailable, UnitState
+from zeno.agent.tools.os_linux import UnitArgs, desktop_tools
+from zeno.hostos.desktop import DesktopUnavailable, NotifyArgs, UnitState
 
 
 @dataclass

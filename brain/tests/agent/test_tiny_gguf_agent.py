@@ -68,12 +68,11 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
     # every built-in tool's schema against the real one, through the engine.
     from zeno.agent.steps import step_grammar
     from zeno.agent.tools import builtin_tools
-    from zeno.agent.tools.desktop import desktop_tools
     from zeno.agent.tools.devices import SensorCache
     from zeno.agent.tools.mqtt import mqtt_tools
     from zeno.agent.tools.network import network_tools
+    from zeno.agent.tools.os_linux import CommandSettings, command_tools, desktop_tools
     from zeno.agent.tools.scripts import script_tools
-    from zeno.agent.tools.shell import CommandSettings, shell_tools
     from zeno.agent.tools.ssh import SshConfig, ssh_tools
     from zeno.agent.tools.telemetry import telemetry_tools
     from zeno.agent.tools.ui import ui_tools
@@ -141,7 +140,7 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
             *mqtt_tools(mqtt, NoBroker(), SensorCache()),
             *telemetry_tools(),
             *desktop_tools(NoDesktop()),
-            *shell_tools(CommandSettings(roots=[tmp_path])),
+            *command_tools(CommandSettings(roots=[tmp_path])),
         ]
     )
     assert {"run_command", "notify_desktop", "top_processes"} <= set(registry.names())

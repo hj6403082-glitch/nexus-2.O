@@ -96,7 +96,9 @@ REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements.txt"
 )
 def test_os_specific_packages_carry_a_platform_marker(package: str, marker: str) -> None:
     """Each OS installs only its own desktop packages, so the other OS's pip never fails."""
-    lines = [line for line in REQUIREMENTS.read_text().splitlines() if line.startswith(package + "==")]
+    lines = [
+        line for line in REQUIREMENTS.read_text().splitlines() if line.startswith(package + "==")
+    ]
     assert len(lines) == 1, f"{package} must be pinned exactly once"
     assert lines[0].endswith("; " + marker)
 

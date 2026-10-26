@@ -5,17 +5,18 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
 from tests.api.test_daemon import Log, make_daemon
-from zeno.systemd import SystemdNotifier
+from zeno.hostos.linux.systemd import SystemdNotifier
 
-pytestmark = pytest.mark.skipif(not hasattr(socket, "AF_UNIX"), reason="needs Unix sockets")
+pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="sd_notify is Linux only")
 
-UNIT = Path(__file__).parents[2] / "linux" / "zeno.service"
+UNIT = Path(__file__).parents[2] / "daemons" / "zeno.service"
 
 
 class Systemd:
