@@ -204,6 +204,11 @@ def test_programs_that_run_other_code_are_refused(command: str) -> None:
         "rsync --rsh=id a b",
         "rsync --rsync-path=id a b",
         "zip -TT id a.zip x",
+        "git -C /tmp -c core.pager=id log",
+        "git --git-dir=x -c a=b status",
+        "tar xIf id a.tar",
+        "tar --to-com=id -xf a.tar",
+        "rsync -avessh a b",
     ],
 )
 def test_flags_that_run_code_are_refused(command: str) -> None:

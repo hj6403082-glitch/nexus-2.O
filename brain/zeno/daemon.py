@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -12,11 +13,14 @@ from fastapi import FastAPI
 from zeno.agent.audit import JsonlAuditLog
 from zeno.agent.tools import builtin_tools
 from zeno.agent.tools.base import Tool
+from zeno.agent.tools.desktop import desktop_tools
 from zeno.agent.tools.devices import SensorCache
 from zeno.agent.tools.mqtt import mqtt_tools
 from zeno.agent.tools.network import network_tools
 from zeno.agent.tools.scripts import script_tools
+from zeno.agent.tools.shell import CommandSettings, shell_tools
 from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
+from zeno.agent.tools.telemetry import telemetry_tools
 from zeno.agent.tools.web import FetchPolicy, web_tools
 from zeno.api.app import create_api
 from zeno.api.auth import load_or_create_token
@@ -185,6 +189,7 @@ class ZenoDaemon:
             ),
             *script_tools(s.scripts_dir, timeout=s.script_timeout, max_output=s.script_max_output),
             *await self._outbound_tools(),
+            *self._linux_tools(),
         ]
         orchestrator = Orchestrator(
             engine=engine,
@@ -227,6 +232,32 @@ class ZenoDaemon:
             self._cleanups.append(self._stop_mqtt)
             await self.mqtt.start()  # connects in the background; boot does not wait
             tools += mqtt_tools(mqtt, self.mqtt, self.sensors)
+        return tools
+
+    def _linux_tools(self) -> list[Tool[Any]]:
+        """Phase 3 tools for the Linux machine Zeno runs on; each needs its own setting."""
+        s = self.settings
+        if not (s.linux_tools or s.run_command):
+            return []
+        if sys.platform != "linux":
+            log.warning("ZENO_LINUX_TOOLS / ZENO_RUN_COMMAND are ignored on %s", sys.platform)
+            return []
+        from zeno.desktop.dbus import DbusDesktop  # dbus-fast is installed on Linux only
+
+        tools: list[Tool[Any]] = []
+        if s.linux_tools:
+            desktop = DbusDesktop()
+            self._cleanups.append(desktop.close)
+            tools += telemetry_tools()
+            tools += desktop_tools(desktop, per_hour=s.desktop_notify_per_hour)
+        if s.run_command:
+            tools += shell_tools(
+                CommandSettings(
+                    roots=s.run_command_roots,
+                    default_timeout=s.run_command_timeout,
+                    max_output=s.run_command_max_output,
+                )
+            )
         return tools
 
     async def _stop_mqtt(self) -> None:

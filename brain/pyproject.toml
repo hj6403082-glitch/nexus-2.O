@@ -29,6 +29,8 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "S", "ASYNC", "RUF"]
 "tests/**" = ["S101"]
 # The command-policy tests name dangerous paths and commands on purpose; nothing runs
 "tests/linux/test_command_policy.py" = ["S101", "S108"]
+# dbus-fast reads D-Bus signatures from string annotations such as "s" and "a{sv}"
+"tests/linux/test_dbus_integration.py" = ["S101", "F821", "F722"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -172,27 +172,36 @@ def _check_code_flags(name: str, args: _Args) -> None:
         _check_git(args.tokens)
         return
     exact, longs, shorts = _CODE_FLAGS.get(name, (set(), set(), set()))
+    letters = set(args.shorts)
+    if name == "tar" and args.tokens and not args.tokens[0].startswith("-"):
+        letters.update(args.tokens[0])  # old-style "tar xIf ...": the first word is flags
     found = exact.intersection(args.tokens) or {o for o in longs if args.long(o)}
-    found |= {f"-{s}" for s in shorts & args.shorts}
+    found |= {f"-{s}" for s in shorts & letters}
     if found:
         raise CommandRefused(f"{name} {min(found)} runs another program; refused")
 
 
 def _check_git(tokens: list[str]) -> None:
-    subcommand_at = next((i for i, t in enumerate(tokens) if not t.startswith("-")), len(tokens))
-    global_options = tokens[:subcommand_at]
-    if any(
-        t == "-c" or _long_matches(t, "--config-env") or _long_matches(t, "--exec-path")
-        for t in global_options
-    ):
-        raise CommandRefused("git -c, --config-env and --exec-path can run commands; refused")
+    # Checked anywhere, not only before the subcommand: "git -C dir -c x=y log" would
+    # otherwise hide -c behind the folder argument. (So "git log -c" is refused too.)
     for word in tokens:
-        if word.startswith("ext::") or any(
-            _long_matches(word, o) for o in ("--upload-pack", "--receive-pack", "--exec")
+        if (
+            word == "-c"
+            or word.startswith("ext::")
+            or any(
+                _long_matches(word, option)
+                for option in (
+                    "--config-env",
+                    "--exec-path",
+                    "--upload-pack",
+                    "--receive-pack",
+                    "--exec",
+                )
+            )
         ):
-            raise CommandRefused("that git option runs another program; refused")
-    subcommand = tokens[subcommand_at] if subcommand_at < len(tokens) else ""
-    if subcommand in {"clone", "fetch", "pull", "ls-remote", "archive"} and "-u" in tokens:
+            raise CommandRefused(f"git {word} can run another program; refused")
+    fetching = {"clone", "fetch", "pull", "ls-remote", "archive"}.intersection(tokens)
+    if fetching and "-u" in tokens:
         raise CommandRefused("git -u (--upload-pack) runs another program; refused")
 
 

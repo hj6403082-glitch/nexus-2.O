@@ -3,7 +3,9 @@
 This folder is Zeno's native Python brain. The plans it follows are
 [`ZENO_ARCHITECTURE.md`](../ZENO_ARCHITECTURE.md) (approved 2026-10-19) and
 [`ZENO_PHASE2_ARCHITECTURE.md`](../ZENO_PHASE2_ARCHITECTURE.md) (vision, voice,
-watchers, tools; approved 2026-10-20). Read them before changing the design.
+watchers, tools; approved 2026-10-20) and
+[`ZENO_LINUX_INTEGRATION.md`](../ZENO_LINUX_INTEGRATION.md) (systemd, telemetry,
+run_command, D-Bus; approved 2026-10-26). Read them before changing the design.
 The Next.js app in `../src` is a separate subsystem.
 
 ## Locked decisions
@@ -247,6 +249,27 @@ that other pillars' tests use instead of the real backend.
   rejects. Check new tool schemas with the tiny-GGUF test that validates the full
   tool grammar through the engine.
 
+## Linux integration (Phase 3)
+
+- Off until `ZENO_LINUX_TOOLS=true` (telemetry, `notify_desktop`, `service_status`)
+  and, separately, `ZENO_RUN_COMMAND=true`; ignored on other systems
+  (`ZenoDaemon._linux_tools`). `dbus-fast` installs on Linux only.
+- `run_command` (`zeno/agent/tools/shell.py`) is PRIVILEGED. The pure policy in
+  `command_policy.py` splits the line itself (no shell) and refuses shell syntax,
+  code-running programs and catastrophic commands. It runs as the tool's
+  `precheck`, which the agent loop calls before approval: a refused call is
+  answered with its reason and never reaches the owner. It runs again just before
+  executing. Add a rule with a parametrized test and, for flag-shaped rules, a
+  hypothesis property test over spellings.
+- Only `tools/scripts.py` and `tools/shell.py` may start processes, and `shell.py`
+  only with `create_subprocess_exec` (safety test).
+- Service: `brain/linux/zeno.service` (systemd user unit, `Type=notify`,
+  `WatchdogSec=60`), installed by `linux/install-service.sh`. `zeno/systemd.py`
+  sends READY after boot, WATCHDOG from the event loop and STOPPING at shutdown;
+  it does nothing without `NOTIFY_SOCKET`.
+- D-Bus tests run against a private `dbus-daemon` the test starts; they never touch
+  the real desktop or systemd.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.
@@ -257,7 +280,8 @@ that other pillars' tests use instead of the real backend.
   audit log.
 - The one place a model-written command reaches a shell is `ssh_run`, on a host the
   owner listed, with key auth and strict known_hosts, approved each time, and never
-  in proactive runs.
+  in proactive runs. `run_command` runs local programs without a shell, after the
+  command policy and the owner's approval.
 - Secrets never go in the config files: the MQTT password comes from the environment
   variable that `password_env` names.
 - Tool output, memories and device data are untrusted data, never instructions.

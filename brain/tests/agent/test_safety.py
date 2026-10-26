@@ -83,6 +83,7 @@ OUTBOUND = {
     "icmplib": {"agent/tools/network.py"},
     "asyncssh": {"agent/tools/ssh.py"},
     "aiomqtt": {"senses/mqtt.py"},
+    "dbus_fast": {"desktop/dbus.py"},
     "paramiko": set(),
     "requests": set(),
     "urllib": set(),

@@ -1,6 +1,6 @@
 # Zeno Phase 3: Linux OS Integration
 
-**Status:** draft for Boss's approval (2026-10-26). Nothing in this plan is built yet.
+**Status:** approved by Boss 2026-10-26 with the defaults in section 9. Built; the code is the source of truth where details differ (noted inline).
 
 Phase 3 makes Zeno a native administrator of the Linux machine it runs on:
 - it starts with the OS as a systemd service;
@@ -51,7 +51,7 @@ All of these read through `psutil` in a worker thread (`asyncio.to_thread`), so 
 | `system_health()` | CPU % (sampled over 0.5 s), load average, memory and swap, each mounted disk's use, uptime, and battery if present |
 | `system_temperatures()` | `psutil.sensors_temperatures()` and fans, flagging any sensor at or above its `high` / `critical` mark |
 | `top_processes(sort_by, limit)` | The top N processes by `cpu` or `memory`. `limit` is 1 to 20. Shows pid, user, name, CPU %, RSS and status. No command lines by default, since those can contain secrets. |
-| `process_info(pid)` | Details for one process: name, user, start time, threads, open-file count, parent, and its command line cut to 200 characters |
+| `process_info(pid)` | Details for one process: name, user, status, start time, threads, parent, memory, and its command line cut to 200 characters |
 
 The existing `get_system_info` and `network_status` stay as they are. Phase 3 does not duplicate them.
 
@@ -66,7 +66,7 @@ The existing `get_system_info` and `network_status` stay as they are. Phase 3 do
    - Because there's no shell, shell syntax can't work (`|`, `;`, `&&`, `>`, `$( )`, backticks, `*`). The policy refuses it up front with a clear message, rather than letting it be passed through as literal text.
    - For a pipeline, Zeno runs the steps one at a time, or uses the program's own flags (for example `journalctl -n 50` instead of `| tail`).
 3. **Policy check** (3.2). This is a pure function of the argument list. A refused command never reaches the approval card, never runs, and comes back to Zeno as an observation explaining why.
-4. **Approval card.** It shows the exact argument list, the working folder and the timeout.
+4. **Approval card.** It shows the command text exactly as it will be split (there is no shell to reinterpret it), the working folder and the timeout. The refusal check runs before this, through the tool's new `precheck` hook in the agent loop, so a refused command is answered with its reason and never reaches the card.
 5. **Run.**
    - The process runs as Zeno's user, with `stdin` closed and a small environment (the same allowlist the script runner uses, so no brain secrets).
    - It starts in its own process group, so a timeout kills the program and everything it spawned.
@@ -155,7 +155,7 @@ Zeno runs as **your** user (`systemctl --user`), not as root, and not as a separ
 
 To start it at boot without logging in, run `loginctl enable-linger` once.
 
-### 5.2 `brain/linux/zeno.service`
+### 5.2 `brain/linux/zeno.service` (the file in the repo is the source of truth)
 
 ```ini
 [Unit]

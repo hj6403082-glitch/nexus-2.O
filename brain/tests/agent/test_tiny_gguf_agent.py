@@ -68,11 +68,14 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
     # every built-in tool's schema against the real one, through the engine.
     from zeno.agent.steps import step_grammar
     from zeno.agent.tools import builtin_tools
+    from zeno.agent.tools.desktop import desktop_tools
     from zeno.agent.tools.devices import SensorCache
     from zeno.agent.tools.mqtt import mqtt_tools
     from zeno.agent.tools.network import network_tools
     from zeno.agent.tools.scripts import script_tools
+    from zeno.agent.tools.shell import CommandSettings, shell_tools
     from zeno.agent.tools.ssh import SshConfig, ssh_tools
+    from zeno.agent.tools.telemetry import telemetry_tools
     from zeno.agent.tools.ui import ui_tools
     from zeno.agent.tools.web import FetchPolicy, web_tools
     from zeno.memory.episodic import EpisodicMemory
@@ -84,6 +87,13 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
 
     async def nowhere(command: dict[str, object]) -> None:
         return None
+
+    class NoDesktop:
+        async def notify(self, title: str, body: str, urgency: str) -> int:
+            return 0
+
+        async def unit_state(self, name: str, scope: str) -> None:
+            return None
 
     class NoBroker:
         async def publish(self, topic: str, payload: bytes, *, qos: int, retain: bool) -> None:
@@ -129,8 +139,12 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
             *web_tools(search_url="http://127.0.0.1:8888", fetch=FetchPolicy()),
             *ssh_tools(ssh),
             *mqtt_tools(mqtt, NoBroker(), SensorCache()),
+            *telemetry_tools(),
+            *desktop_tools(NoDesktop()),
+            *shell_tools(CommandSettings(roots=[tmp_path])),
         ]
     )
+    assert {"run_command", "notify_desktop", "top_processes"} <= set(registry.names())
     assert {"ping", "fetch_page", "ssh_run", "actuate_light", "mqtt_read"} <= set(registry.names())
     await engine.load()
     backend = engine._backend  # the real grammar parser lives here

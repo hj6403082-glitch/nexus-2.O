@@ -87,6 +87,19 @@ class Settings(BaseSettings):
     mqtt_file: Path = Path("data/mqtt.json")
     """Broker, readable topics and actuators; no file, no MQTT."""
 
+    # Phase 3: Linux OS integration. Ignored on other systems.
+    linux_tools: bool = False
+    """Offer telemetry (health, temperatures, processes), desktop notifications and
+    systemd unit status."""
+    run_command: bool = False
+    """Offer run_command: one command at a time, no shell, your approval every time."""
+    run_command_roots: list[Path] = [Path("~")]
+    """Folders a command's working folder must be inside."""
+    run_command_timeout: float = Field(30.0, ge=1.0, le=120.0)
+    run_command_max_output: int = Field(4000, ge=100)
+    """Characters kept from each of stdout and stderr."""
+    desktop_notify_per_hour: int = Field(30, ge=1)
+
     @field_validator("web_search_url")
     @classmethod
     def _web_address(cls, url: str | None) -> str | None:
