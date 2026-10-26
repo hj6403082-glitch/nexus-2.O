@@ -45,7 +45,7 @@ def test_no_dynamic_code_or_shell(path: Path) -> None:
             assert node.module.split(".")[0] not in FORBIDDEN_MODULES, path.name
 
 
-def test_only_the_script_runner_starts_processes() -> None:
+def test_only_the_script_runner_and_run_command_start_processes() -> None:
     starters = set()
     for path in SOURCES:
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -58,7 +58,21 @@ def test_only_the_script_runner_starts_processes() -> None:
                 and node.func.attr in PROCESS_CALLS
             ):
                 starters.add(path.relative_to(AGENT_DIR).as_posix())
-    assert starters == {"tools/scripts.py"}
+    assert starters == {"tools/scripts.py", "tools/shell.py"}
+
+
+def test_run_command_only_ever_uses_exec_without_a_shell() -> None:
+    tree = ast.parse((AGENT_DIR / "tools" / "shell.py").read_text(encoding="utf-8"))
+    process_calls = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in PROCESS_CALLS | {"create_subprocess_shell", "system", "popen"}:
+                process_calls.add(node.func.attr)
+            assert all(k.arg != "shell" for k in node.keywords)
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            names = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module]
+            assert "subprocess" not in names
+    assert process_calls == {"create_subprocess_exec"}
 
 
 ZENO_DIR = AGENT_DIR.parent
