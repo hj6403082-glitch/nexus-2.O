@@ -15,7 +15,8 @@
 
 $ErrorActionPreference = 'Stop'
 $PSModuleAutoLoadingPreference = 'None'
-Import-Module -Name (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1')
+# No Join-Path: it lives in a module that auto-loading would have to load.
+Import-Module -Name "$PSHOME/Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1"
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 if ($args.Count -ne 1) {

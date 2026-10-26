@@ -16,6 +16,9 @@ from typing import Any
 KILL_GRACE = 1.0
 """Seconds a stopped program gets before the next, harder stop."""
 
+EXIT_POLL = 0.02
+"""Seconds between checks that the program has exited."""
+
 
 class CommandRefused(ValueError):
     """The command is never run; the message says why."""
@@ -91,7 +94,7 @@ async def run_process(
     killed = False
     try:
         async with asyncio.timeout(seconds):
-            await process.wait()
+            await _exited(process)
     except TimeoutError:
         killed = True
         await stop(process)
@@ -105,6 +108,14 @@ async def run_process(
     elapsed = time.monotonic() - started
     code = None if killed else process.returncode
     return RunResult(code, out.text(), err.text(), elapsed, killed)
+
+
+async def _exited(process: asyncio.subprocess.Process) -> None:
+    # Before Python 3.13, Process.wait() also waits for the pipes to close (gh-119710),
+    # and a child that left the group can hold them open forever. The exit code is
+    # set as soon as the program exits, so watch that instead.
+    while process.returncode is None:  # noqa: ASYNC110 (asyncio offers no exit event)
+        await asyncio.sleep(EXIT_POLL)
 
 
 class Capture:

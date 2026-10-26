@@ -3,6 +3,7 @@ an approved one in Constrained Language Mode."""
 
 import base64
 import ntpath
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from zeno.hostos.windows.ps_policy import PsTree, parse_tree
 HELPER = Path(__file__).with_name("ps_parse.ps1")
 PARSE_SECONDS = 12.0
 PARSE_MAX_OUTPUT = 4_000_000
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 # Runs before the approved command, in the same session. The last line is one-way:
 # from then on no .NET method calls, Add-Type or COM.
@@ -62,6 +64,6 @@ async def parse_command(
         max_output=PARSE_MAX_OUTPUT,
     )
     if result.killed or result.exit_code != 0:
-        detail = result.stderr.strip().splitlines()[-1:] or ["no detail"]
-        raise CommandRefused(f"PowerShell's parser could not read it ({detail[0][:200]})")
+        detail = " ".join(ANSI.sub("", result.stderr).split()) or "no detail"
+        raise CommandRefused(f"PowerShell's parser could not read it ({detail[:200]})")
     return parse_tree(result.stdout)

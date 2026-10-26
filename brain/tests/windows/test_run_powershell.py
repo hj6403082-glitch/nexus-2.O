@@ -258,3 +258,17 @@ def test_powershell_7_is_preferred_when_installed() -> None:
     assert found == EXE
     fallback = powershell.find_powershell("C:\\Windows", programs, exists=lambda path: False)
     assert fallback == "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+
+
+async def test_a_failed_parse_says_why_in_plain_text() -> None:
+    # PowerShell 7 colours its errors and spreads them over several lines.
+    stderr = (
+        "\x1b[31;1mJoin-Path: \x1b[0mThe term 'Join-Path' is not recognized.\n"
+        "\x1b[36;1m     | \x1b[31;1mCheck the spelling of the name.\x1b[0m\n\n"
+    )
+    runner = FakeRunner(RunResult(1, "", stderr, 0.1, False))
+    with pytest.raises(CommandRefused) as refused:
+        await powershell.parse_command("x", exe=EXE, cwd=HOME, env={}, runner=runner)
+    message = str(refused.value)
+    assert "\x1b" not in message
+    assert "The term 'Join-Path' is not recognized" in message
