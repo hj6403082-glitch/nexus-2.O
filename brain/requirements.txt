@@ -44,3 +44,8 @@ numpy==2.5.4
 pywhispercpp==1.5.1
 piper-tts==1.8.0
 webrtcvad-wheels==2.0.14.post1
+
+# --- Phase 3: Linux OS integration (ZENO_LINUX_INTEGRATION.md) ---
+# psutil (above) covers telemetry. D-Bus for desktop notifications and systemd
+# unit status; Linux only, so Windows installs are unchanged.
+dbus-fast==5.2.0; sys_platform == "linux"

@@ -64,3 +64,13 @@ def test_pytorch_is_not_pulled_in() -> None:
 def test_banned_frameworks_are_not_installed(banned: str) -> None:
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(banned)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="dbus-fast is installed on Linux only")
+@pytest.mark.parametrize("module", ["dbus_fast", "dbus_fast.aio"])
+def test_phase3_linux_dependency_imports(module: str) -> None:
+    importlib.import_module(module)
+
+
+def test_property_testing_is_available() -> None:
+    importlib.import_module("hypothesis")
