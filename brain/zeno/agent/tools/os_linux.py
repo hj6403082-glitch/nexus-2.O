@@ -15,7 +15,7 @@ import posixpath
 import shutil
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path, PurePath
 from typing import Annotated, Any, Literal, Protocol
 
@@ -205,7 +205,7 @@ def desktop_tools(
             return f"{args.name} is not loaded in the {args.scope} systemd."
         text = f"{state.name} ({state.description}): {state.active} ({state.sub}), {state.load}"
         if state.since is not None:
-            since = datetime.fromtimestamp(state.since).astimezone()
+            since = datetime.fromtimestamp(state.since, UTC).astimezone()
             text += f", since {since.isoformat(timespec='seconds')}"
         return text
 

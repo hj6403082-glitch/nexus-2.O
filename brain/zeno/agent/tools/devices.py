@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from pydantic import Field, StringConstraints
@@ -80,7 +80,7 @@ def device_tools(
         if reading is None:
             return f"No reading from {args.device} {args.sensor} yet."
         unit = f" {reading.unit}" if reading.unit else ""
-        when = datetime.fromtimestamp(reading.received_at).astimezone()
+        when = datetime.fromtimestamp(reading.received_at, UTC).astimezone()
         return (
             f"{args.device} {args.sensor} = {reading.value}{unit} "
             f"(at {when.isoformat(timespec='seconds')})"

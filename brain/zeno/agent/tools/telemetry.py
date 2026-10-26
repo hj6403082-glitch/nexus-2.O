@@ -6,7 +6,7 @@ Every read runs in a worker thread, so sampling CPU use never blocks the event l
 
 import asyncio
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 import psutil
@@ -159,7 +159,7 @@ def _process(ps: Any, pid: int) -> str:
         with proc.oneshot():
             name = proc.name()
             user = _safe(ps, proc.username, "unknown")
-            started = datetime.fromtimestamp(proc.create_time()).astimezone()
+            started = datetime.fromtimestamp(proc.create_time(), UTC).astimezone()
             command = " ".join(_safe(ps, proc.cmdline, []))
             details = (
                 f"{name} (pid {pid}), user {user}, {proc.status()}, "

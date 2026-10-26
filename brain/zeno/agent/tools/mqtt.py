@@ -9,7 +9,7 @@ import dataclasses
 import json
 import math
 import typing
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, Protocol
 
 from pydantic import Field, create_model
@@ -104,7 +104,7 @@ def _read_tool(names: list[str], sensors: SensorCache) -> Tool[Any]:
         reading = sensors.latest(DEVICE, args.name)
         if reading is None:
             return f"No message on {args.name} yet."
-        when = datetime.fromtimestamp(reading.received_at).astimezone()
+        when = datetime.fromtimestamp(reading.received_at, UTC).astimezone()
         value = json.dumps(reading.value) if not isinstance(reading.value, str) else reading.value
         return f"{args.name} = {value} (at {when.isoformat(timespec='seconds')})"
 
