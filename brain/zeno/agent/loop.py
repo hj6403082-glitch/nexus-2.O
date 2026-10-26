@@ -1,6 +1,7 @@
 """The ReAct loop: think, act through a registered tool, observe, repeat, answer."""
 
 import asyncio
+import inspect
 import json
 import logging
 import time
@@ -36,6 +37,9 @@ from zeno.inference.base import (
 from zeno.inference.structured import generate_json
 
 log = logging.getLogger(__name__)
+
+PRECHECK_TIMEOUT = 15.0
+"""Seconds a tool's pre-approval check may take; one that takes longer refuses."""
 
 INVALID_STEP = (
     "Your last reply was not a valid step. Reply with one JSON object: an action that "
@@ -167,7 +171,7 @@ class ReActAgent:
                     break
                 yield ToolCall(run.step, item.name, arguments, item.risk)
 
-                refusal = _precheck(item, args)
+                refusal = await _precheck(item, args)
                 if refusal is not None:
                     await run.record(
                         "refused", {"tool": item.name, "args": arguments, "reason": refusal}
@@ -248,12 +252,15 @@ class _Run:
         await self._audit.record(AuditRecord(self._clock(), self.run_id, self.step, kind, data))
 
 
-def _precheck(item: Tool[Any], args: Any) -> str | None:
-    """The tool's own pre-approval check. A check that fails refuses (fail closed)."""
+async def _precheck(item: Tool[Any], args: Any) -> str | None:
+    """The tool's own pre-approval check. A check that fails or hangs refuses (fail closed)."""
     if item.precheck is None:
         return None
     try:
-        return item.precheck(args)
+        result = item.precheck(args)
+        if inspect.isawaitable(result):
+            result = await asyncio.wait_for(result, PRECHECK_TIMEOUT)
+        return result
     except Exception as error:
         log.exception("Precheck of %s failed", item.name)
         return f"the call could not be checked ({error.__class__.__name__})"

@@ -21,7 +21,7 @@ from zeno.agent.tools.telemetry import (
 
 Mem = namedtuple("Mem", "total available percent")
 Swap = namedtuple("Swap", "total used percent")
-Part = namedtuple("Part", "device mountpoint fstype")
+Part = namedtuple("Part", "device mountpoint fstype opts", defaults=["rw"])
 Usage = namedtuple("Usage", "total used percent")
 Battery = namedtuple("Battery", "percent power_plugged secsleft")
 Temp = namedtuple("Temp", "label current high critical")
@@ -235,3 +235,41 @@ async def test_the_real_psutil_works_here() -> None:
     found = {t.name: t for t in telemetry_tools(sample_seconds=0.05)}
     assert "CPU" in await found["system_health"].invoke(HealthArgs())
     assert "pid" in await found["top_processes"].invoke(TopArgs(limit=3))
+
+
+# --- the same tools on a Windows-shaped psutil ----------------------------------------
+
+
+def windows_psutil() -> Any:
+    def usage(path: str) -> Usage:
+        if path != "C:\\":
+            raise PermissionError(path)  # what psutil raises for an empty drive
+        return Usage(500 * GB, 200 * GB, 40.0)
+
+    module = fake_psutil(
+        disk_partitions=lambda all=False: [
+            Part("C:\\", "C:\\", "NTFS", "rw,fixed"),
+            Part("D:\\", "D:\\", "", "cdrom"),
+            Part("E:\\", "E:\\", "", "removable"),
+        ],
+        disk_usage=usage,
+    )
+    for name in ("sensors_temperatures", "sensors_fans"):  # psutil has none on Windows
+        delattr(module, name)
+    return module
+
+
+async def test_windows_health_lists_drive_letters_and_skips_empty_drives() -> None:
+    ps = windows_psutil()
+    seen: list[str] = []
+    real_usage = ps.disk_usage
+    ps.disk_usage = lambda path: seen.append(path) or real_usage(path)
+    text = await tools(ps)["system_health"].invoke(HealthArgs())
+    assert "disk C:\\ 40.0% used" in text
+    assert "D:" not in text and "E:" not in text
+    assert seen == ["C:\\"]  # no drive without a file system is even asked
+
+
+async def test_windows_has_no_temperature_sensors() -> None:
+    text = await tools(windows_psutil())["system_temperatures"].invoke(TemperatureArgs())
+    assert text == "No temperature sensors are readable here."

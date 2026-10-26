@@ -1,6 +1,7 @@
 """Phase 2 tools join the daemon only when the owner configured them."""
 
 import json
+import platform
 import socket
 import sys
 from pathlib import Path
@@ -121,11 +122,12 @@ LINUX = {
 }
 
 
-async def test_linux_tools_are_off_until_turned_on(tmp_path: Path) -> None:
+async def test_os_tools_are_off_until_turned_on(tmp_path: Path) -> None:
     daemon, _ = make_daemon(tmp_path, Log())
     await daemon.start()
     try:
         assert LINUX.isdisjoint(daemon.services.base_tools)
+        assert "run_powershell" not in daemon.services.base_tools
     finally:
         await daemon.stop()
 
@@ -133,7 +135,7 @@ async def test_linux_tools_are_off_until_turned_on(tmp_path: Path) -> None:
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux tools")
 async def test_linux_tools_join_when_turned_on(tmp_path: Path) -> None:
     daemon, _ = make_daemon(
-        tmp_path, Log(), linux_tools=True, run_command=True, run_command_roots=[tmp_path]
+        tmp_path, Log(), os_tools=True, run_command=True, run_command_roots=[tmp_path]
     )
     await daemon.start()
     try:
@@ -143,13 +145,31 @@ async def test_linux_tools_join_when_turned_on(tmp_path: Path) -> None:
         await daemon.stop()
 
 
-async def test_linux_tools_are_ignored_elsewhere(
+async def test_the_daemon_loads_the_windows_toolset_on_windows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sys, "platform", "win32")
-    daemon, _ = make_daemon(tmp_path, Log(), linux_tools=True, run_command=True)
+    monkeypatch.setattr(platform, "system", lambda: "Windows")
+    daemon, _ = make_daemon(
+        tmp_path, Log(), os_tools=True, run_command=True, run_command_roots=[tmp_path]
+    )
     await daemon.start()
     try:
-        assert LINUX.isdisjoint(daemon.services.base_tools)
+        tools = daemon.services.base_tools
+        assert "run_powershell" in tools and "run_command" not in tools
+        assert tools["run_powershell"].risk.value == "privileged"
+    finally:
+        await daemon.stop()
+
+
+async def test_other_systems_get_telemetry_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    daemon, _ = make_daemon(tmp_path, Log(), os_tools=True, run_command=True)
+    await daemon.start()
+    try:
+        assert "system_health" in daemon.services.base_tools
+        assert "run_command" not in daemon.services.base_tools
+        assert "notify_desktop" not in daemon.services.base_tools
     finally:
         await daemon.stop()

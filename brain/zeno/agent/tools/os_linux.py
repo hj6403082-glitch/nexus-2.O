@@ -22,15 +22,20 @@ from typing import Annotated, Any, Literal, Protocol
 from pydantic import AfterValidator, Field, StringConstraints
 
 from zeno.agent.tools.base import Risk, Tool, ToolArgs, tool
+from zeno.agent.tools.os_loader import OsToolset
+from zeno.agent.tools.telemetry import telemetry_tools
+from zeno.config import Settings
 from zeno.hostos.desktop import DesktopUnavailable, Notifier, Scope, UnitState, notify_tool
-from zeno.hostos.linux.command_policy import (
-    TRUSTED_DIRS,
-    CommandRefused,
-    PolicyContext,
-    check_command,
-)
+from zeno.hostos.linux.command_policy import TRUSTED_DIRS, PolicyContext, check_command
 from zeno.hostos.linux.process import run_linux_process
-from zeno.hostos.process import KILL_GRACE, CommandSettings, Runner, one_line, report
+from zeno.hostos.process import (
+    KILL_GRACE,
+    CommandRefused,
+    CommandSettings,
+    Runner,
+    one_line,
+    report,
+)
 
 __all__ = [
     "CommandArgs",
@@ -39,6 +44,7 @@ __all__ = [
     "UnitArgs",
     "command_tools",
     "desktop_tools",
+    "linux_tools",
     "trusted_which",
 ]
 
@@ -77,6 +83,25 @@ class UnitArgs(ToolArgs):
 
 class LinuxDesktop(Notifier, Protocol):
     async def unit_state(self, name: str, scope: Scope) -> UnitState | None: ...
+
+
+def linux_tools(
+    settings: Settings, command: CommandSettings, *, desktop: LinuxDesktop | None = None
+) -> OsToolset:
+    """What ``os_loader`` registers on Linux, as the owner's settings turn it on."""
+    toolset = OsToolset()
+    if settings.os_tools:
+        if desktop is None:
+            from zeno.hostos.linux.dbus import DbusDesktop  # dbus-fast is on Linux only
+
+            dbus = DbusDesktop()
+            toolset.cleanups.append(dbus.close)
+            desktop = dbus
+        toolset.tools += telemetry_tools()
+        toolset.tools += desktop_tools(desktop, per_hour=settings.desktop_notify_per_hour)
+    if settings.run_command:
+        toolset.tools += command_tools(command)
+    return toolset
 
 
 def trusted_which(name: str) -> str | None:

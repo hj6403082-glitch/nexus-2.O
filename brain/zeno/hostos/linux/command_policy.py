@@ -12,6 +12,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from zeno.hostos.process import CommandRefused
+
 TRUSTED_DIRS = ("/usr/bin", "/bin", "/usr/sbin", "/sbin", "/usr/local/bin", "/usr/local/sbin")
 MAX_ARGS = 64
 
@@ -76,10 +78,6 @@ _CODE_FLAGS: dict[str, tuple[set[str], set[str], set[str]]] = {
     "rsync": (set(), {"--rsh", "--rsync-path"}, {"e"}),
     "zip": ({"-TT"}, {"--unzip-command"}, set()),
 }
-
-
-class CommandRefused(ValueError):
-    """The command is never run; the message says why."""
 
 
 @dataclass(frozen=True)

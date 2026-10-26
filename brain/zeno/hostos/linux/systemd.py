@@ -9,6 +9,7 @@ variable (Windows, a plain terminal) every call does nothing.
 import logging
 import os
 import socket
+import sys
 from collections.abc import Mapping
 
 log = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class SystemdNotifier:
         return usec / 1_000_000 if usec > 0 else None
 
     def _send(self, field: str | None, status: str) -> bool:
-        if not self.enabled or self._address is None:
+        if not self.enabled or self._address is None or sys.platform == "win32":
             return False
         lines = [field] if field else []
         if status:

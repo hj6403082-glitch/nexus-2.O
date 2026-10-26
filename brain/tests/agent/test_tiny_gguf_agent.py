@@ -149,3 +149,17 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
     backend = engine._backend  # the real grammar parser lives here
     assert backend is not None
     assert backend.validate_grammar(step_grammar(registry))
+
+    # The Windows toolset replaces the Linux one; its schemas must compile too.
+    from zeno.agent.tools import os_windows
+
+    windows = ToolRegistry(
+        [
+            *builtin_tools(memory=memory, devices=ConnectionManager()),
+            *telemetry_tools(),
+            *os_windows.desktop_tools(NoDesktop()),
+            *os_windows.powershell_tools(CommandSettings(roots=[tmp_path]), exe="pwsh.exe"),
+        ]
+    )
+    assert {"run_powershell", "service_status"} <= set(windows.names())
+    assert backend.validate_grammar(step_grammar(windows))

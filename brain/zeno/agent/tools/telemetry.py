@@ -69,6 +69,8 @@ def _health(ps: Any, sample: float) -> str:
     if swap.total:
         lines.append(f"swap {swap.percent}% used ({_bytes(swap.used)} of {_bytes(swap.total)})")
     for part in ps.disk_partitions(all=False):
+        if not part.fstype or "cdrom" in part.opts:  # Windows: an empty or optical drive
+            continue
         try:
             usage = ps.disk_usage(part.mountpoint)
         except (PermissionError, OSError):

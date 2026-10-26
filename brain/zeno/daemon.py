@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -16,15 +15,13 @@ from zeno.agent.tools.base import Tool
 from zeno.agent.tools.devices import SensorCache
 from zeno.agent.tools.mqtt import mqtt_tools
 from zeno.agent.tools.network import network_tools
-from zeno.agent.tools.os_linux import CommandSettings, command_tools, desktop_tools
+from zeno.agent.tools.os_loader import load_os_tools, service_notifier
 from zeno.agent.tools.scripts import script_tools
 from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
-from zeno.agent.tools.telemetry import telemetry_tools
 from zeno.agent.tools.web import FetchPolicy, web_tools
 from zeno.api.app import create_api
 from zeno.api.auth import load_or_create_token
 from zeno.config import Settings
-from zeno.hostos.linux.systemd import SystemdNotifier
 from zeno.inference.base import InferenceEngine
 from zeno.inference.llama_cpp import LlamaCppEngine
 from zeno.memory.base import Embedder, VectorStore
@@ -110,7 +107,7 @@ class ZenoDaemon:
         self.bus = EventBus(settings.event_queue_size)
         self.sensors = SensorCache()
         self.mqtt: MqttSense | None = None
-        self.notifier = SystemdNotifier.from_environment()
+        self.notifier = service_notifier()
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
         self._lifecycle = asyncio.Lock()
@@ -188,7 +185,7 @@ class ZenoDaemon:
             ),
             *script_tools(s.scripts_dir, timeout=s.script_timeout, max_output=s.script_max_output),
             *await self._outbound_tools(),
-            *self._linux_tools(),
+            *self._os_tools(),
         ]
         orchestrator = Orchestrator(
             engine=engine,
@@ -233,31 +230,11 @@ class ZenoDaemon:
             tools += mqtt_tools(mqtt, self.mqtt, self.sensors)
         return tools
 
-    def _linux_tools(self) -> list[Tool[Any]]:
-        """Phase 3 tools for the Linux machine Zeno runs on; each needs its own setting."""
-        s = self.settings
-        if not (s.linux_tools or s.run_command):
-            return []
-        if sys.platform != "linux":
-            log.warning("ZENO_LINUX_TOOLS / ZENO_RUN_COMMAND are ignored on %s", sys.platform)
-            return []
-        from zeno.hostos.linux.dbus import DbusDesktop  # dbus-fast is installed on Linux only
-
-        tools: list[Tool[Any]] = []
-        if s.linux_tools:
-            desktop = DbusDesktop()
-            self._cleanups.append(desktop.close)
-            tools += telemetry_tools()
-            tools += desktop_tools(desktop, per_hour=s.desktop_notify_per_hour)
-        if s.run_command:
-            tools += command_tools(
-                CommandSettings(
-                    roots=s.run_command_roots,
-                    default_timeout=s.run_command_timeout,
-                    max_output=s.run_command_max_output,
-                )
-            )
-        return tools
+    def _os_tools(self) -> list[Tool[Any]]:
+        """Phase 3 tools for the OS Zeno runs on; each needs its own setting."""
+        toolset = load_os_tools(self.settings)
+        self._cleanups += toolset.cleanups
+        return toolset.tools
 
     async def _stop_mqtt(self) -> None:
         if self.mqtt is not None:

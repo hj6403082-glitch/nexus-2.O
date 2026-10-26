@@ -16,6 +16,11 @@ from typing import Any
 KILL_GRACE = 1.0
 """Seconds a stopped program gets before the next, harder stop."""
 
+
+class CommandRefused(ValueError):
+    """The command is never run; the message says why."""
+
+
 Stopper = Callable[[asyncio.subprocess.Process], Awaitable[None]]
 
 

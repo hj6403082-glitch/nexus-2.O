@@ -1,6 +1,11 @@
 """A tool's precheck refuses a call before the owner is asked, with a reason the model sees."""
 
+import asyncio
+
+import pytest
+
 from tests.agent.conftest import AddArgs, Toolbox, act, drive, final, finished, make_agent
+from zeno.agent import loop
 from zeno.agent.audit import MemoryAuditLog
 from zeno.agent.events import ApprovalRequired, Observation
 from zeno.agent.policy import ApprovalRequest
@@ -81,3 +86,48 @@ async def test_a_precheck_that_fails_refuses(audit: MemoryAuditLog) -> None:
     observation = next(e for e in events if isinstance(e, Observation))
     assert not observation.ok and "could not be checked" in observation.content
     assert calls == []
+
+
+def approve(request: ApprovalRequest) -> None:
+    request.approve()
+
+
+def async_guarded(calls: list[int], *, delay: float = 0.0) -> Tool[AddArgs]:
+    async def precheck(args: AddArgs) -> str | None:
+        await asyncio.sleep(delay)
+        return "negative numbers are refused" if args.a < 0 else None
+
+    @tool(risk=Risk.MUTATING, timeout=1.0, precheck=precheck)
+    async def careful_add(args: AddArgs) -> str:
+        """Add two integers, carefully."""
+        calls.append(args.a + args.b)
+        return str(args.a + args.b)
+
+    return careful_add
+
+
+async def test_an_async_precheck_is_awaited(audit: MemoryAuditLog) -> None:
+    calls: list[int] = []
+    agent, _ = make_agent(
+        [act("careful_add", a=-1, b=2), final("No.")], ToolRegistry([async_guarded(calls)]), audit
+    )
+    events = await drive(agent, decide=approve)
+    observation = next(e for e in events if isinstance(e, Observation))
+    assert "Refused before asking the owner: negative numbers are refused" in observation.content
+    assert calls == []
+
+
+async def test_a_precheck_that_hangs_refuses(
+    audit: MemoryAuditLog, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(loop, "PRECHECK_TIMEOUT", 0.05)
+    calls: list[int] = []
+    agent, _ = make_agent(
+        [act("careful_add", a=1, b=2), final("No.")],
+        ToolRegistry([async_guarded(calls, delay=5.0)]),
+        audit,
+    )
+    events = await drive(agent, decide=approve)
+    observation = next(e for e in events if isinstance(e, Observation))
+    assert "could not be checked" in observation.content
+    assert calls == [] and not any(isinstance(e, ApprovalRequired) for e in events)

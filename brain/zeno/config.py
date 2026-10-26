@@ -87,12 +87,13 @@ class Settings(BaseSettings):
     mqtt_file: Path = Path("data/mqtt.json")
     """Broker, readable topics and actuators; no file, no MQTT."""
 
-    # Phase 3: Linux OS integration. Ignored on other systems.
-    linux_tools: bool = False
+    # Phase 3: OS integration (Linux and Windows; ZENO_OS_INTEGRATION.md).
+    os_tools: bool = False
     """Offer telemetry (health, temperatures, processes), desktop notifications and
-    systemd unit status."""
+    service status for this OS."""
     run_command: bool = False
-    """Offer run_command: one command at a time, no shell, your approval every time."""
+    """Offer run_command (Linux, no shell) or run_powershell (Windows, checked and
+    constrained): one command at a time, your approval every time."""
     run_command_roots: list[Path] = [Path("~")]
     """Folders a command's working folder must be inside."""
     run_command_timeout: float = Field(30.0, ge=1.0, le=120.0)

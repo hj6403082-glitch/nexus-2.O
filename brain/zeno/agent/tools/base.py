@@ -43,6 +43,7 @@ class ToolDefinitionError(Exception):
 
 
 A = TypeVar("A", bound=ToolArgs)
+Precheck = str | None | Awaitable[str | None]
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -53,8 +54,9 @@ class Tool(Generic[A]):
     risk: Risk
     timeout: float
     func: Callable[[A], Awaitable[str]]
-    precheck: Callable[[A], str | None] | None = None
-    """Runs before approval; a returned reason refuses the call without asking."""
+    precheck: Callable[[A], Precheck] | None = None
+    """Runs before approval; a returned reason refuses the call without asking. It may
+    be async (the PowerShell check runs PowerShell's parser)."""
 
     async def invoke(self, args: A) -> str:
         return await self.func(args)
@@ -65,7 +67,7 @@ def tool(
     *,
     risk: Risk,
     timeout: float = 10.0,
-    precheck: Callable[[Any], str | None] | None = None,
+    precheck: Callable[[Any], Precheck] | None = None,
 ) -> Callable[[Callable[[A], Awaitable[str]]], Tool[A]]:
     """Turn ``async def name(args: SomeArgs) -> str`` into a ``Tool``.
 
