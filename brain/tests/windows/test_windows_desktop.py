@@ -250,3 +250,11 @@ async def test_the_real_windows_runner_kills_on_timeout(tmp_path: Any) -> None:
     )
     assert result.killed and result.elapsed < 10
     await asyncio.sleep(0)
+
+
+def test_the_toast_identity_is_looked_up_only_on_windows() -> None:
+    from zeno.hostos.windows.toast import REGISTRATION, app_id_registered
+
+    assert REGISTRATION == "Software\\Classes\\AppUserModelId\\Zeno.Brain"
+    if sys.platform != "win32":
+        assert app_id_registered() is False

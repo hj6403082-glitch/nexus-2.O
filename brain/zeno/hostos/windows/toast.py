@@ -1,15 +1,15 @@
 """Windows toast notifications through WinRT (the winrt-* packages, Windows only).
 
 A toast needs an AppUserModelID that Windows knows. ``daemons/windows_setup.ps1``
-registers ``Zeno.Brain`` on a Start-menu shortcut; until that exists the toast is
-shown under PowerShell's own ID, so it still appears (labelled Windows PowerShell).
+registers ``Zeno.Brain`` under HKCU (``REGISTRATION``); until it does,
+the toast is shown under PowerShell's own ID, so it still appears (labelled Windows
+PowerShell).
 """
 
 import asyncio
 import logging
-import os
+import sys
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -24,9 +24,20 @@ POWERSHELL_APP_ID = (
 _ENABLED = 0  # NotificationSetting.ENABLED
 
 
-def shortcut_path() -> Path:
-    appdata = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
-    return Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Zeno.lnk"
+REGISTRATION = "Software\\Classes\\AppUserModelId\\" + APP_ID
+
+
+def app_id_registered() -> bool:
+    """Whether windows_setup.ps1 registered Zeno's toast identity for this user."""
+    if sys.platform != "win32":
+        return False
+    import winreg
+
+    try:
+        winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CURRENT_USER, REGISTRATION))
+    except OSError:
+        return False
+    return True
 
 
 def toast_xml(title: str, body: str, urgency: str) -> str:
@@ -51,7 +62,7 @@ class WindowsToaster:
         self,
         app_id: str = APP_ID,
         *,
-        registered: Callable[[], bool] = lambda: shortcut_path().exists(),
+        registered: Callable[[], bool] = app_id_registered,
         winrt: Callable[[], tuple[Any, Any]] = _load_winrt,
     ) -> None:
         self._app_id = app_id
@@ -71,7 +82,7 @@ class WindowsToaster:
         app_id = self._app_id
         if not self._registered():
             if not self._warned:
-                log.info("Zeno has no Start-menu shortcut yet; run daemons/windows_setup.ps1")
+                log.info("Zeno's toast identity is not registered; run daemons/windows_setup.ps1")
                 self._warned = True
             app_id = POWERSHELL_APP_ID
         try:

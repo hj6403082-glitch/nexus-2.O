@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     """Seconds to wait for the owner to approve a state-changing tool before refusing."""
     agent_max_observation_chars: int = Field(2000, ge=1)
     audit_log_path: Path = Path("data/audit/agent.jsonl")
+    log_file: Path = Path("data/logs/zeno.log")
+    """Where logs go when there is no console (pythonw, the Windows logon task)."""
     scripts_dir: Path = Path("scripts")
     """Owner-curated Python scripts the agent may run (with approval), by name."""
     script_timeout: float = Field(30.0, gt=0.0)

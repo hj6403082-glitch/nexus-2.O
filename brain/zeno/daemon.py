@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -275,6 +276,9 @@ class ZenoDaemon:
             server_header=False,
             proxy_headers=False,
             log_level="info",
+            # No console (pythonw): uvicorn's own stderr handlers would drop everything,
+            # so let its loggers reach the root logger's file instead.
+            log_config=None if sys.stderr is None else uvicorn.config.LOGGING_CONFIG,
         )
         self._server = uvicorn.Server(config)
         await self._server.serve()

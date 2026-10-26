@@ -23,7 +23,7 @@ has_dbus = importlib.util.find_spec("dbus_fast") is not None
 
 
 def settings(tmp_path: Path, **values: object) -> Settings:
-    return Settings(data_dir=tmp_path, run_command_roots=[tmp_path], **values)  # type: ignore[arg-type]
+    return Settings(run_command_roots=[tmp_path], **values)  # type: ignore[arg-type]
 
 
 def names(toolset: os_loader.OsToolset) -> set[str]:
@@ -137,7 +137,7 @@ def modules_loaded_for(system: str, tmp_path: Path) -> list[str]:
 import json, sys
 from zeno.agent.tools import os_loader
 from zeno.config import Settings
-s = Settings(data_dir={str(tmp_path)!r}, os_tools=True, run_command=True,
+s = Settings(os_tools=True, run_command=True,
              run_command_roots=[{str(tmp_path)!r}])
 os_loader.load_os_tools(s, system=lambda: {system!r})
 os_loader.service_notifier(lambda: {system!r})
