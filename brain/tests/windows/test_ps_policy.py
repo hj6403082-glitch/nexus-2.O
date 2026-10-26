@@ -196,6 +196,17 @@ REFUSED: dict[str, tuple[N, str]] = {
     "splatting": (one(cmd("Get-Item", var("args", splatted=True))), "splat"),
     "$_ outside a block": (one(cmd("Get-Item", var("_"))), "$_"),
     "a computed command name": (one(cmd(xs("Remove-$x", var("x")))), "name"),
+    # Real PowerShell keeps the backtick in the name it reports; refuse any escape.
+    "an escaped command name": (
+        one(
+            N(
+                "CommandAst",
+                [N("StringConstantExpressionAst", props={"Value": "i`ex"}, text="i`ex"), q("x")],
+                {"InvocationOperator": "Unknown", "CommandName": "i`ex"},
+            )
+        ),
+        "escape",
+    ),
     # catastrophic
     "Remove-Item C:\\ -Recurse": (one(cmd("Remove-Item", s("C:\\"), p("Recurse"))), "protected"),
     "rm -r -fo C:\\": (one(cmd("rm", p("r"), p("fo"), s("C:\\"))), "protected"),

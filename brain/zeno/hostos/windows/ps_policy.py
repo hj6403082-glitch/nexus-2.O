@@ -389,6 +389,9 @@ def _command(node: PsNode, tree: PsTree) -> tuple[str, bool]:
     name = node.props.get("CommandName")
     if not name or not node.children or node.children[0].type != "StringConstantExpressionAst":
         raise CommandRefused("a command whose name is computed is not allowed")
+    if "`" in name or "`" in node.children[0].text:
+        # The parser reports i`ex as "i`ex", which no table knows; it still runs iex.
+        raise CommandRefused("an escape character (`) in a command name is not allowed")
     lowered = name.lower()
     if lowered in tree.aliases:
         return tree.aliases[lowered].lower(), False
