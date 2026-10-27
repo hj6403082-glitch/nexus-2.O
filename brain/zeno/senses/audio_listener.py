@@ -6,7 +6,7 @@ on a detection it calls ``loop.call_soon_threadsafe`` to hand a ``"wake"`` event
 to the loop, which is the only safe bridge from a foreign thread into asyncio and
 does not block. So a slow or stuck microphone read can never stall the EventBus.
 
-PyAudio and openwakeword are imported lazily (Windows-only, optional), and the
+sounddevice and openwakeword are imported lazily (Windows-only, optional), and the
 audio stream and the detector are injected, so every test runs with fakes on any
 OS and never opens a real microphone.
 """
@@ -153,7 +153,7 @@ class WakeWordListener:
 
 
 def build_listener(settings: object, bus: EventBus) -> WakeWordListener:
-    """Wire a listener from settings with the real (lazy) PyAudio + openwakeword
+    """Wire a listener from settings with the real (lazy) sounddevice + openwakeword
     factories. The imports only run when the thread starts, so this is safe to call
     anywhere; the daemon only starts it on Windows."""
     threshold = float(getattr(settings, "wakeword_confidence", 0.6))
@@ -189,30 +189,29 @@ def _builtin_detector_factory() -> DetectorFactory:
 
 
 def default_stream_factory(frame_samples: int = FRAME_SAMPLES) -> StreamFactory:
-    """A PyAudio microphone stream. Imported lazily; Windows/optional."""
+    """A sounddevice microphone stream. Imported lazily; Windows/optional."""
 
     def open_stream() -> AudioStream:
-        import pyaudio  # optional, loaded only when voice wake is on
+        import sounddevice  # optional, loaded only when voice wake is on
 
-        audio = pyaudio.PyAudio()
-        stream = audio.open(
-            rate=SAMPLE_RATE,
+        stream = sounddevice.RawInputStream(
+            samplerate=SAMPLE_RATE,
             channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=frame_samples,
+            dtype="int16",
+            blocksize=frame_samples,
         )
+        stream.start()
 
-        class _PyAudioStream:
+        class _SoundDeviceStream:
             def read(self, frames: int) -> bytes:
-                return bytes(stream.read(frames, exception_on_overflow=False))
+                data, _overflowed = stream.read(frames)
+                return bytes(data)
 
             def close(self) -> None:
-                stream.stop_stream()
+                stream.stop()
                 stream.close()
-                audio.terminate()
 
-        return _PyAudioStream()
+        return _SoundDeviceStream()
 
     return open_stream
 

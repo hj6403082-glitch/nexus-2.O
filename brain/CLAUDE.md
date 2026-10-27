@@ -306,7 +306,7 @@ that other pillars' tests use instead of the real backend.
   mic and scores frames with openwakeword; on a hit over `ZENO_WAKEWORD_CONFIDENCE`
   it calls `loop.call_soon_threadsafe` to publish a `"wake"` `DeviceEvent` — the only
   thread→loop bridge, so the mic never blocks the EventBus. On by default
-  (`ZENO_WAKEWORD`), Windows only (pyaudio/openwakeword are `sys_platform == "win32"`
+  (`ZENO_WAKEWORD`), Windows only (sounddevice/openwakeword are `sys_platform == "win32"`
   deps); the daemon skips it elsewhere. The stream and detector are injected, so
   tests use fakes and never open a microphone.
 - "Send to Zeno": `hostos/windows/shell_integration.py` writes per-user keys under

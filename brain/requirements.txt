@@ -59,4 +59,6 @@ winrt-Windows.Data.Xml.Dom==3.2.1; sys_platform == "win32"
 # openwakeword needs onnxruntime (chromadb already pulls it in). Windows-only:
 # the daemon and its microphone live on the user's PC, not on the Linux brain host.
 openwakeword==0.6.0; sys_platform == "win32"
-pyaudio==0.2.14; sys_platform == "win32"
+# sounddevice bundles PortAudio through CFFI, so its wheels are ABI-independent and
+# install on any CPython (incl. 3.14) with no compiler. pyaudio has no cp314 wheel.
+sounddevice==0.5.2; sys_platform == "win32"
