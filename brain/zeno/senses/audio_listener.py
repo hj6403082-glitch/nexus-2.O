@@ -169,6 +169,19 @@ def build_listener(settings: object, bus: EventBus) -> WakeWordListener:
     )
 
 
+def _ensure_openwakeword_models() -> None:
+    """Fetch openwakeword's model files once (idempotent, skips what exists).
+
+    openwakeword ships no model files in its wheel; it downloads them on first use.
+    tflite-runtime is a Linux-only dependency, so on Windows Zeno runs openwakeword
+    under onnxruntime (a hard openwakeword dependency, always installed) and needs
+    the ``.onnx`` feature and wake models present. ``download_models`` pulls both the
+    tflite and onnx forms, so this covers the onnx inference framework below."""
+    from openwakeword.utils import download_models
+
+    download_models()
+
+
 def _builtin_detector_factory() -> DetectorFactory:
     """openwakeword with its bundled models when no path is set."""
 
@@ -176,7 +189,8 @@ def _builtin_detector_factory() -> DetectorFactory:
         import numpy as np
         from openwakeword.model import Model
 
-        model = Model()
+        _ensure_openwakeword_models()
+        model = Model(inference_framework="onnx")
 
         class _OpenWakeWord:
             def predict(self, frame: bytes) -> Mapping[str, float]:
@@ -223,7 +237,8 @@ def default_detector_factory(model_path: str) -> DetectorFactory:
         import numpy as np
         from openwakeword.model import Model
 
-        model = Model(wakeword_models=[model_path])
+        _ensure_openwakeword_models()
+        model = Model(wakeword_models=[model_path], inference_framework="onnx")
 
         class _OpenWakeWord:
             def predict(self, frame: bytes) -> Mapping[str, float]:

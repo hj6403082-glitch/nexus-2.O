@@ -308,7 +308,10 @@ that other pillars' tests use instead of the real backend.
   thread→loop bridge, so the mic never blocks the EventBus. On by default
   (`ZENO_WAKEWORD`), Windows only (sounddevice/openwakeword are `sys_platform == "win32"`
   deps); the daemon skips it elsewhere. The stream and detector are injected, so
-  tests use fakes and never open a microphone.
+  tests use fakes and never open a microphone. openwakeword ships no models in its
+  wheel and `tflite-runtime` is Linux-only, so the detector fetches the models with
+  `download_models()` and runs under onnxruntime (`inference_framework="onnx"`);
+  `setup.ps1` pre-fetches them so the first "Hey Zeno" works offline.
 - "Send to Zeno": `hostos/windows/shell_integration.py` writes per-user keys under
   `HKCU\Software\Classes` (winreg injected for tests, never the real registry);
   `hostos/windows/send_to_zeno.py` is the windowless client that sends the path to

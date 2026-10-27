@@ -41,6 +41,15 @@ if ($VoiceExtra) {
   if ($LASTEXITCODE -ne 0) { throw 'Optional voice adapters failed to install.' }
 }
 
+# J.A.R.V.I.S. wake word: openwakeword ships no model files, it fetches them on first
+# use. Pull them now so "Hey Zeno" works at first start. tflite-runtime is Linux-only,
+# so on Windows Zeno runs openwakeword under onnxruntime (which download_models covers).
+Write-Host 'Fetching wake-word models ...'
+& $venvPython -c "from openwakeword.utils import download_models; download_models()"
+if ($LASTEXITCODE -ne 0) {
+  Write-Warning 'Wake-word model download failed; voice wake stays off until it succeeds (re-run setup.ps1 on a network connection).'
+}
+
 if ($Cuda) {
   Write-Host "Switching llama-cpp-python to the CUDA build ..."
   if ($FromSource) {
