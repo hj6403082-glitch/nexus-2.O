@@ -39,5 +39,5 @@ packages = ["zeno"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["llama_cpp.*", "chromadb.*", "icmplib.*", "winrt.*"]
+module = ["llama_cpp.*", "chromadb.*", "icmplib.*", "winrt.*", "openwakeword.*", "pyaudio"]
 ignore_missing_imports = true

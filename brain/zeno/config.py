@@ -103,6 +103,14 @@ class Settings(BaseSettings):
     """Characters kept from each of stdout and stderr."""
     desktop_notify_per_hour: int = Field(30, ge=1)
 
+    # J.A.R.V.I.S. Protocol: the always-on Windows daemon (ZENO_GOD_MODE_WINDOWS.md).
+    wakeword: bool = True
+    """Listen for "Hey Zeno" on the microphone (Windows daemon). On by default."""
+    wakeword_model_path: Path | None = None
+    """The openwakeword .onnx model. Blank uses the listener's built-in default."""
+    wakeword_confidence: float = Field(0.6, ge=0.0, le=1.0)
+    """How sure the model must be before a "wake" event fires."""
+
     @field_validator("web_search_url")
     @classmethod
     def _web_address(cls, url: str | None) -> str | None:

@@ -53,3 +53,10 @@ dbus-fast==5.2.0; sys_platform == "linux"
 winrt-runtime==3.2.1; sys_platform == "win32"
 winrt-Windows.UI.Notifications==3.2.1; sys_platform == "win32"
 winrt-Windows.Data.Xml.Dom==3.2.1; sys_platform == "win32"
+
+# --- J.A.R.V.I.S. Protocol: always-on Windows daemon (ZENO_GOD_MODE_WINDOWS.md) ---
+# Local wake-word ("Hey Zeno") on its own thread. numpy (above) feeds the model.
+# openwakeword needs onnxruntime (chromadb already pulls it in). Windows-only:
+# the daemon and its microphone live on the user's PC, not on the Linux brain host.
+openwakeword==0.6.0; sys_platform == "win32"
+pyaudio==0.2.14; sys_platform == "win32"

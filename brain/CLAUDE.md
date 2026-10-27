@@ -295,6 +295,27 @@ that other pillars' tests use instead of the real backend.
   `mypy --platform win32 zeno`. CI (`.github/workflows/brain-tests.yml`) runs
   everything on Ubuntu and Windows.
 
+## J.A.R.V.I.S. Protocol (always-on Windows daemon, ZENO_GOD_MODE_WINDOWS.md)
+
+- `daemons/install_zeno_windows.ps1` is the Windows installer: a per-user logon
+  Scheduled Task (`RunLevel Limited`, never admin), the `Zeno.Brain` toast identity,
+  and the "Send to Zeno" Explorer menu. The daemon runs as the user; a command that
+  needs admin asks via a UAC prompt at that moment. There is no "run anything as
+  admin" tool — that would be an escape hatch out of the PowerShell sandbox.
+- Wake word ("Hey Zeno"): `senses/audio_listener.py`. A `threading.Thread` reads the
+  mic and scores frames with openwakeword; on a hit over `ZENO_WAKEWORD_CONFIDENCE`
+  it calls `loop.call_soon_threadsafe` to publish a `"wake"` `DeviceEvent` — the only
+  thread→loop bridge, so the mic never blocks the EventBus. On by default
+  (`ZENO_WAKEWORD`), Windows only (pyaudio/openwakeword are `sys_platform == "win32"`
+  deps); the daemon skips it elsewhere. The stream and detector are injected, so
+  tests use fakes and never open a microphone.
+- "Send to Zeno": `hostos/windows/shell_integration.py` writes per-user keys under
+  `HKCU\Software\Classes` (winreg injected for tests, never the real registry);
+  `hostos/windows/send_to_zeno.py` is the windowless client that sends the path to
+  the loopback chat WebSocket with the local token. No new network surface.
+- Request 3 (`powershell_execute` + HITL) is the existing `run_powershell`: already
+  PRIVILEGED, parsed, policy-checked, approval-gated, stdout+stderr returned.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.

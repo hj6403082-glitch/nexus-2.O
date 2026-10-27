@@ -1,6 +1,12 @@
 # Zeno on Windows: always-on daemon, wake word, shell integration
 
-**Status:** draft blueprint for Phase 2+3 merge ("J.A.R.V.I.S. Protocol"). Awaiting Boss's approval before any code is written. Builds on PR #21 (cross-platform OS integration), which is green on Ubuntu and Windows.
+**Status:** approved 2026-10-27. Building now. Builds on PR #21 (cross-platform OS integration), which is green on Ubuntu and Windows.
+
+**Locked decisions (Boss, 2026-10-27):**
+1. **Daemon privilege — standard user, never admin.** The background daemon runs under the normal user account. Elevation is per-command, via a Windows UAC prompt at the moment a command needs it, never a blanket-admin service. This keeps the Phase 3 safety net: Zeno can only touch what the user can, and the approval gate sits on top of that.
+2. **Microphone — on by default.** The wake-word listener starts with the daemon and runs continuously on its own thread. It can be turned off with `ZENO_WAKEWORD=false`.
+
+**One deliberate narrowing of request 3 (per-command elevation).** A generic "run any command as Administrator" tool (`Start-Process -Verb RunAs` on arbitrary text) is an escape hatch *out* of the whole sandbox: an elevated child runs outside Constrained Language Mode, outside the policy whitelist, as admin. Wiring that behind an agent — one that a voice wake word can reach — would remove exactly the safety net decision 1 says to keep. So `run_powershell` stays non-elevated and policy-checked. When a specific admin task is genuinely needed, the right design is a narrow, named, separately-approved elevated command with its own allowlist, not a general RunAs. Flagged to Boss.
 
 This plan covers four pieces that run at once without blocking Zeno's async core: an invisible logon daemon, a wake-word listener, an approved-command PowerShell tool, and an Explorer right-click entry. The point throughout is that the parts that can change the machine stay behind the approval gate Phase 3 already built, and the always-on parts (microphone, auto-start) are explicit and easy to turn off.
 

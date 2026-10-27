@@ -32,8 +32,9 @@ from zeno.memory.episodic import EpisodicMemory
 from zeno.memory.manager import MemoryManager
 from zeno.memory.semantic import FactMemory
 from zeno.orchestrator import Orchestrator
+from zeno.senses.audio_listener import WakeWordListener
 from zeno.senses.auth import DeviceAuth
-from zeno.senses.events import EventBus
+from zeno.senses.events import DeviceEvent, EventBus
 from zeno.senses.manager import ConnectionManager
 from zeno.senses.mqtt import MqttSense, load_mqtt_config
 
@@ -108,6 +109,7 @@ class ZenoDaemon:
         self.bus = EventBus(settings.event_queue_size)
         self.sensors = SensorCache()
         self.mqtt: MqttSense | None = None
+        self.wake: WakeWordListener | None = None
         self.notifier = service_notifier()
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
@@ -176,6 +178,7 @@ class ZenoDaemon:
         self._cleanups.append(self.bus.stop)
         self._cleanups.append(self.devices.close_all)
         self._cleanups.append(self.sensors.attach(self.bus))
+        self._start_wake_word()
 
         tools = [  # Pillar 4: the agent's tools
             *builtin_tools(
@@ -236,6 +239,24 @@ class ZenoDaemon:
         toolset = load_os_tools(self.settings)
         self._cleanups += toolset.cleanups
         return toolset.tools
+
+    def _start_wake_word(self) -> None:
+        """Start the "Hey Zeno" listener on its own thread (Windows daemon, mic on).
+
+        The listener publishes "wake" events; a slow microphone read stays on the
+        thread and never blocks the loop. Only runs on Windows, where PyAudio and
+        openwakeword are installed; elsewhere voice wake is simply off."""
+        if not self.settings.wakeword or sys.platform != "win32":
+            return
+        from zeno.senses.audio_listener import build_listener
+
+        async def on_wake(event: DeviceEvent) -> None:
+            log.info("Wake word detected: %s (%.2f)", event.data["model"], event.data["confidence"])
+
+        self.bus.subscribe(on_wake, kind="wake")
+        self.wake = build_listener(self.settings, self.bus)
+        self.wake.start()
+        self._cleanups.append(self.wake.stop)
 
     async def _stop_mqtt(self) -> None:
         if self.mqtt is not None:
