@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     if (module === 'stocks') {
       const token = process.env.FINNHUB_API_KEY;
-      if (!token) return Response.json({ error: 'Connect Finnhub by setting FINNHUB_API_KEY on the server, then restart NEXUS.' }, { status: 503 });
+      if (!token) return Response.json({ error: 'Connect Finnhub by setting FINNHUB_API_KEY on the server, then restart Zeno.' }, { status: 503 });
       const symbol = (params.get('symbol') || 'NVDA').toUpperCase();
       if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return Response.json({ error: 'Enter a valid market symbol.' }, { status: 400 });
       const quote = await providerJson(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}`, { 'X-Finnhub-Token': token });
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     }
     if (module === 'sports') {
       const token = process.env.FOOTBALL_DATA_TOKEN;
-      if (!token) return Response.json({ error: 'Connect football-data.org by setting FOOTBALL_DATA_TOKEN on the server, then restart NEXUS.' }, { status: 503 });
+      if (!token) return Response.json({ error: 'Connect football-data.org by setting FOOTBALL_DATA_TOKEN on the server, then restart Zeno.' }, { status: 503 });
       if (params.get('view') === 'standings') {
         const competition = params.get('competition') || 'PL';
         if (!['PL', 'PD', 'BL1', 'SA', 'FL1'].includes(competition)) return Response.json({ error: 'Choose a supported league.' }, { status: 400 });

@@ -6,7 +6,7 @@ import { GPUComputationRenderer } from 'three/examples/jsm/misc/GPUComputationRe
 // current 3D displacement offset. Every frame the sim integrates a curl-noise
 // turbulence (magnetic fluid suspended in zero-g) that relaxes elastically back
 // toward the baked surface, with amplitude driven by the live audio level so
-// the whole mesh seethes when NEXUS speaks. The embodiment vertex shader
+// the whole mesh seethes when Zeno speaks. The embodiment vertex shader
 // samples this field and adds the offset to each particle's target position.
 //
 // Guarded by the caller: if the platform cannot compile the compute pass,

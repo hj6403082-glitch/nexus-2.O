@@ -2,7 +2,9 @@ export const FORM_DURATION = 8;
 export type FormPhase = 'NORMAL' | 'COMMAND_DETECTED' | 'COLLAPSING' | 'PARTICLE_CORE' | 'SKELETON_FORMING' | 'HUMANOID_FORMING' | 'HUMANOID_ACTIVE' | 'RETURNING';
 export const smooth = (a: number, b: number, value: number) => { const t = Math.max(0, Math.min(1, (value - a) / (b - a))); return t * t * (3 - 2 * t); };
 export function envelopes(time: number) {
-  return { dim: smooth(0, 1.3, time), dissolve: smooth(.5, 2.6, time), collapse: smooth(.6, 3.1, time), core: smooth(2.2, 3.1, time) * (1 - smooth(3.8, 5.2, time)), skeleton: smooth(3.5, 4.5, time), body: smooth(4.3, 7.4, time), eyes: smooth(6.9, 7.8, time), presence: smooth(6.5, 8, time) };
+  return { dim: smooth(0, 1.3, time), dissolve: smooth(.5, 2.6, time), collapse: smooth(.6, 3.1, time), core: smooth(2.2, 3.1, time) * (1 - smooth(3.8, 5.2, time)), skeleton: smooth(3.5, 4.5, time), body: smooth(4.3, 7.4, time), eyes: smooth(6.9, 7.8, time), presence: smooth(6.5, 8, time),
+    // Screen-space effects: the core ignition flash and the materialisation scan.
+    ignite: smooth(2.7, 3.3, time) * (1 - smooth(3.5, 4.6, time)), scan: smooth(4.0, 7.6, time) };
 }
 export class FormTimeline {
   time = 0;

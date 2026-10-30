@@ -1,0 +1,97 @@
+from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
+
+from zeno.config import Settings
+
+
+@pytest.fixture(autouse=True)
+def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("ZENO_MODEL_PATH", "ZENO_GPU_LAYERS", "ZENO_CONTEXT_SIZE", "ZENO_THREADS"):
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_defaults_target_cpu_inference() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.model_path is None
+    assert settings.gpu_layers == 0
+    assert settings.context_size == 4096
+    assert settings.max_tokens == 700
+    assert settings.max_queue == 4
+
+
+def test_environment_overrides(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    model = tmp_path / "model.gguf"
+    monkeypatch.setenv("ZENO_MODEL_PATH", str(model))
+    monkeypatch.setenv("ZENO_GPU_LAYERS", "-1")
+    monkeypatch.setenv("ZENO_CONTEXT_SIZE", "8192")
+    settings = Settings(_env_file=None)
+    assert settings.model_path == model
+    assert settings.gpu_layers == -1
+    assert settings.context_size == 8192
+
+
+def test_reads_dotenv_file(tmp_path: Path) -> None:
+    env = tmp_path / ".env"
+    env.write_text("ZENO_GPU_LAYERS=20\nZENO_THREADS=6\n")
+    settings = Settings(_env_file=env)
+    assert settings.gpu_layers == 20
+    assert settings.threads == 6
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("gpu_layers", -2), ("context_size", 64), ("max_tokens", 0), ("temperature", -0.1)],
+)
+def test_rejects_invalid_values(field: str, value: float) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field: value})
+
+
+def test_memory_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.memory_dir == Path("data/memory")
+    assert settings.embedding_model_path is None
+    assert settings.memory_min_similarity == 0.35
+    assert settings.episode_half_life_days == 30.0
+    assert settings.working_memory_messages == 20
+
+
+def test_agent_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.agent_max_steps == 5
+    assert settings.agent_max_identical_calls == 2
+    assert settings.agent_approval_timeout == 120.0
+    assert settings.agent_max_observation_chars == 2000
+    assert settings.audit_log_path == Path("data/audit/agent.jsonl")
+
+
+def test_agent_limits_come_from_settings() -> None:
+    from zeno.agent.loop import AgentLimits
+
+    limits = AgentLimits.from_settings(Settings(_env_file=None, agent_max_steps=3))
+    assert limits.max_steps == 3
+    assert limits.max_identical_calls == 2
+
+
+def test_agent_step_limit_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, agent_max_steps=0)
+
+
+def test_orchestrator_defaults() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.api_token_file == Path("data/api-token")
+    assert settings.api_allowed_origins == []
+    assert settings.scripts_dir == Path("scripts")
+    assert settings.script_timeout == 30.0
+    assert settings.script_max_output == 4000
+    assert settings.chat_max_chars == 4000
+    assert settings.chat_max_context_chars == 8000
+
+
+def test_the_env_example_loads_as_is() -> None:
+    example = Path(__file__).parents[1] / ".env.example"
+    settings = Settings(_env_file=example)
+    assert settings.web_search_url is None and not settings.network_tools

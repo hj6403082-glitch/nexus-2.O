@@ -1,0 +1,46 @@
+# Zeno brain runtime dependencies. Pinned; bump deliberately and re-run the suite.
+#
+# llama-cpp-python is the CPU build. Prebuilt CPU wheels come from the index
+# below (no compiler needed); if no wheel matches your platform pip falls back to
+# building from source. To switch to an NVIDIA GPU, see "CPU vs CUDA" in
+# brain/CLAUDE.md or run `setup.ps1 -Cuda` / `setup.sh --cuda`.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+
+# Pillar 1: native inference (GGUF models via llama.cpp)
+llama-cpp-python==0.3.36
+
+# Pillar 2: persistent vector memory (embedded, no server)
+chromadb==1.5.9
+
+# Pillar 3: HTTP + WebSocket server
+fastapi==0.147.0
+uvicorn[standard]==0.54.0
+websockets==17.2
+
+# Pillar 4: IANA time zones for the get_time tool (Windows has no system tz database)
+tzdata==2026.5
+
+# Validation and configuration
+pydantic==2.14.1
+pydantic-settings==2.16.0
+
+# --- Phase 2 (ZENO_PHASE2_ARCHITECTURE.md section 7) ---
+# Vision needs no new package: llama-cpp-python ships the Moondream, Qwen2.5-VL and
+# MTMD chat handlers. Only the model and mmproj files are needed (see setup --vision).
+
+# Module A: tools (web, network, SSH, MQTT)
+httpx==0.28.1
+selectolax==1.0.1
+icmplib==3.0.4
+psutil==7.2.2
+asyncssh==2.24.1
+aiomqtt==2.5.1
+
+# Module C: vision intake (decode, size limits, downscale)
+pillow==13.0.0
+
+# Module D: voice (speech-to-text, text-to-speech, voice activity detection)
+numpy==2.5.4
+pywhispercpp==1.5.1
+piper-tts==1.8.0
+webrtcvad-wheels==2.0.14.post1

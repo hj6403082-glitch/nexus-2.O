@@ -1,4 +1,4 @@
-# NEXUS
+# Zeno
 
 A local spatial computing application built with Next.js 15, React 19, Three.js, React Three Fiber and MediaPipe. See [PROGRESS.md](PROGRESS.md) for the exact implementation and acceptance status of all seven phases.
 
@@ -12,14 +12,41 @@ npm run dev -- --port 3001
 
 Open http://127.0.0.1:3001/. For a production preview, run `npm run build` followed by `npm start -- --port 3001`. Node 22+ is recommended. The development disk cache is disabled because OneDrive may lock its files on Windows.
 
+## Open Zeno as an app (Windows, no terminal)
+
+1. Download the repository (Code → Download ZIP) and extract it, or keep your existing Zeno folder.
+2. Double-click **Start ZENO.cmd**. The first run installs Node.js if needed (via winget), installs components and builds Zeno; this takes a few minutes once. Later starts take seconds and only rebuild after updates.
+3. Zeno opens in its own app window (Edge or Chrome app mode, no tabs or address bar). The launcher also adds a **Zeno** shortcut to your Desktop and Start menu, and starts the Ollama app if it is installed.
+
+The engine keeps running quietly in the background on `127.0.0.1:3001`; double-click **Stop ZENO.cmd** to stop it. Its log is in `%LOCALAPPDATA%\Zeno\engine.log`.
+
+Zeno is also an installable web app: in the app window or browser, use **INSTALL APP** (top right) or the install icon in the address bar to pin it to the taskbar and Start menu. If the engine is not running when you open it, the window shows a reconnect screen and opens Zeno by itself once the engine is up. The AI brain only works where Ollama runs, so use Zeno from your own computer rather than a hosted copy when you want local AI.
+
+If Ollama is running without a model, Ask Zeno shows a **Download** button that fetches the model (with progress) without a terminal.
+
 ## AI: local or cloud
 
 Copy `.env.example` to `.env.local` and choose a provider. Never commit `.env.local` or paste credentials into the assistant UI.
 
-- **Ollama (default):** Install Ollama, then run `ollama pull qwen3:1.7b`. Set `AI_PROVIDER=ollama` and `OLLAMA_MODEL=qwen3:1.7b` in `.env.local`, and restart NEXUS. Keep Ollama running while using AI. Requests stay on loopback; no API key is needed. The model download is approximately 1.4 GB and is separate from this repository. This compact model suits basic local assistance; response quality and speed differ from larger cloud models. You can select another installed chat/tool model with `OLLAMA_MODEL`.
+- **Ollama (default):** Install Ollama, then run `ollama pull qwen3:1.7b`. Set `AI_PROVIDER=ollama` and `OLLAMA_MODEL=qwen3:1.7b` in `.env.local`, and restart Zeno. Keep Ollama running while using AI. Requests stay on loopback; no API key is needed. The model download is approximately 1.4 GB and is separate from this repository. This compact model suits basic local assistance; response quality and speed differ from larger cloud models. You can select another installed chat/tool model with `OLLAMA_MODEL`.
+- **Zeno brain (own, fully local):** set `AI_PROVIDER=zeno` and run Zeno's Python brain (`brain/`, see `brain/CLAUDE.md` for setup and models) with `python -m zeno` from the `brain` folder; the Windows launcher starts it for you when `AI_PROVIDER=zeno`. The web app reads the brain's token from `brain/data/api-token` (override with `ZENO_API_TOKEN` or `ZENO_API_TOKEN_FILE`) and talks to `http://127.0.0.1:8765` (`ZENO_BRAIN_URL`, loopback only). The brain keeps the conversation and long-term memory itself and can use tools; anything that changes something (saving a memory, running one of your scripts, a device command) shows **Approve / Deny** in Ask Zeno first.
 - **Gemini:** `AI_PROVIDER=gemini`, plus `GEMINI_API_KEY`. The default model is `gemini-3.8-flash`; override `GEMINI_MODEL` for your account. Requests include recent conversation and the displayed module context.
 
-Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation commands work without either provider. Conversation history is memory-only. Microphone and speech output are opt-in. Browser recognition may use its vendor's servers; native speech synthesis varies by OS and is not routed through spatial audio. Escape stops active AI input/output.
+Use Ask Zeno to type or enable voice. Direct module, orbit and transformation commands work without either provider. Conversation history is memory-only. Microphone and speech output are opt-in. Browser recognition may use its vendor's servers; native speech synthesis varies by OS and is not routed through spatial audio. Escape stops active AI input/output.
+
+**Speed.** Zeno keeps the Ollama model loaded (`OLLAMA_KEEP_ALIVE`, default `30m`), warms it when the app opens, sends only the recent conversation, and keeps the system prompt identical between questions so Ollama reuses its prompt cache. Answers are kept short unless you ask for depth. The first answer after starting your PC is still slower while the model loads.
+
+**Voice.** With voice on, Zeno speaks with a local neural voice (Kokoro, `am_michael` by default; change it with `NEXUS_VOICE_ID`). The first time, it downloads about 90 MB into `.nexus-cache/models`, so it needs internet once; until then, and whenever it is unavailable, the browser's best natural voice is used. In Ask Zeno, **Character** picks *Ultron-style synthetic* (an original deep, metallic, slightly doubled character voice, not a copy of any actor) or *Natural human*. Set `ELEVENLABS_API_KEY` to use ElevenLabs instead, or `NEXUS_LOCAL_VOICE=off` to skip the neural voice. Speech starts on the first phrase and the next sentences are prepared while one plays.
+
+**Gestures.** Hand tracking now analyses every camera frame on the GPU with adaptive smoothing. Beyond swipe, pinch, pull/push, circle and two-hand zoom/group/sculpt: swipe up opens the front card and swipe down closes it; point one finger at a card and hold to open it (the cursor ring fills); hold a peace sign to start or stop ambient motion; hold a thumbs up to switch between spatial and human form. Each recognised gesture flashes beside the hand cursor.
+
+**Sound effects.** Transformations have synthesized sound cues (no audio files). Toggle them with **FX** in the bottom bar; the choice is remembered.
+
+**The core.** In spatial mode a gyroscopic singularity sits at the centre of the orbit: a plasma heart inside a scanning event-horizon shell, circled by three tilted rings with light racing along them and particle streams flowing in their planes. The gyroscope spins up while Zeno thinks, everything pulses with the voice while it speaks, and it tilts toward your pointer. Click it to talk to Zeno.
+
+**Zeno knows you.** Tell it "call me ..." or "remember that ..." and it keeps that on your device; ask "what do you remember about me?" or say "forget everything" any time. It also picks up what you like from normal conversation, notices the time of day and how long you've been away, reads whether you sound excited, frustrated or down, and keeps your recent chat after a restart. The panel greets you by name. To have Zeno know you from the very first launch, copy `zeno-profile.example.json` to `zeno-profile.json` next to `Start ZENO.cmd` and fill in your name and facts; that file stays on your PC and is never committed.
+
+**Spheres.** The modules are glass spheres that float around the core as if tied to it by invisible strings. They drift away from your pointer, and you can drag one and let go to watch it swing back. Double-click empty space to send a shockwave that flings them all outward. Zeno now talks casually, like a person rather than an assistant, and the theme is a lively green.
 
 ## Modules
 
@@ -34,7 +61,7 @@ Use Ask NEXUS to type or enable voice. Direct module, orbit and transformation c
 
 Arrows rotate, Enter opens, Escape closes, H toggles HUD, ? shows help, Ctrl/Command K opens the module launcher. Use Human / Spatial for the reversible particle form and the Environment selector for the six procedural environments. In Human mode, use “Keep beside me · open another” to display two modules. Use Group modules to choose cards (or none for the whole orbit), then group/split with the button, the G key, or two open hands moving together/apart (two pinches still zoom). Ambient motion starts LOCKED. Sound is opt-in.
 
-Hand tracking requires an explicit camera grant. Pinch grabs, release returns, swipe rotates, pull/push opens/closes, a still palm freezes drift, a circle wakes NEXUS, and pinching with both hands adjusts orbit scale. Camera frames are processed locally using the bundled MediaPipe runtime/model. Tracking stops when the tab is hidden. Physical camera accuracy still needs device testing.
+Hand tracking requires an explicit camera grant. Pinch grabs, release returns, swipe rotates, pull/push opens/closes, a still palm freezes drift, a circle wakes Zeno, and pinching with both hands adjusts orbit scale. Camera frames are processed locally using the bundled MediaPipe runtime/model. Tracking stops when the tab is hidden. Physical camera accuracy still needs device testing.
 
 ## Validation
 
@@ -48,10 +75,10 @@ node scripts/check-ai-api.mjs
 The HTTP check needs the server running on port 3001, or `NEXUS_TEST_URL`. It does not make a paid model request. Unit tests cover gestures, spring rest, transition timelines, local request boundaries, command validation, stream chunking and provider routing. A passing test suite does not substitute for physical webcam, voice, provider-account or GPU performance testing.
 
 
-Optional live AI verification: run `node scripts/check-ai-live.mjs` while NEXUS is running. This makes one real request through your configured model provider; provider usage charges can apply.
+Optional live AI verification: run `node scripts/check-ai-live.mjs` while Zeno is running. This makes one real request through your configured model provider; provider usage charges can apply.
 
 If a key verifies but requests from the app fail immediately, check that the terminal running the server has outbound network access. A server launched in a restricted development sandbox can serve the local interface while being unable to contact cloud providers. Restart the server in a normal terminal, wait for its Ready message, and rerun the live check.
 
 ## Grok provider
 
-Set `AI_PROVIDER=grok`, `XAI_API_KEY` and optionally `XAI_MODEL` in `.env.local`, then restart the server. The default model is `grok-4.7`. Obtain an API key from the xAI API console; keep it server-side and never commit it. NEXUS uses streaming chat completions with validated navigation and form tools. It does not enable web/X search. Gemini and local Ollama remain selectable with `AI_PROVIDER=gemini` or `AI_PROVIDER=ollama`; no automatic provider fallback sends your context elsewhere.
+Set `AI_PROVIDER=grok`, `XAI_API_KEY` and optionally `XAI_MODEL` in `.env.local`, then restart the server. The default model is `grok-4.7`. Obtain an API key from the xAI API console; keep it server-side and never commit it. Zeno uses streaming chat completions with validated navigation and form tools. It does not enable web/X search. Gemini and local Ollama remain selectable with `AI_PROVIDER=gemini` or `AI_PROVIDER=ollama`; no automatic provider fallback sends your context elsewhere.

@@ -1,0 +1,6 @@
+{
+  "known_hosts": "~/.ssh/known_hosts",
+  "hosts": {
+    "pi": {"host": "192.168.1.20", "port": 22, "user": "pi", "key_file": "~/.ssh/zeno_ed25519"}
+  }
+}
