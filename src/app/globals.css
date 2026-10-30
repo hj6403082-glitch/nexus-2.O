@@ -177,3 +177,15 @@ button:disabled { cursor: wait; }
 
 /* Phase 8 — flung cards show a hollow outer-orbit dot. */
 .orbit-pagination button[data-flung='true'] span { background:transparent; border:1px solid #9fcff0aa; box-shadow:0 0 8px #9fcff055; }
+/* Dissolved module cards still sit over the figure; let taps reach the canvas. */
+.form-embodied .module-card { pointer-events: none; }
+.human-hint { display:block; margin-top:10px; font-size:11px; letter-spacing:.06em; color:#7f9db3; }
+.gaze-indicator { position:absolute; z-index:36; top:190px; right:24px; display:flex; align-items:center; gap:10px; padding:8px 13px 8px 9px; border:1px solid #adcfee30; border-radius:999px; background:#0d1b2acc; color:#a9c6db; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+.gaze-reticle { position:relative; width:30px; height:30px; border:1px solid #adcfee44; border-radius:50%; display:grid; place-items:center; }
+.gaze-dot { width:7px; height:7px; border-radius:50%; background:#7f9db3; transition:background .3s; }
+.gaze-indicator[data-status="tracking"] { color:#d4ecff; border-color:#9fd3ff66; }
+.gaze-indicator[data-status="tracking"] .gaze-dot { background:#bfe6ff; box-shadow:0 0 8px #9fd3ff; }
+.gaze-indicator[data-status="starting"] .gaze-dot, .gaze-indicator[data-status="searching"] .gaze-dot { animation:gaze-pulse 1.4s ease-in-out infinite; }
+@keyframes gaze-pulse { 50% { opacity:.3; } }
+@media (prefers-reduced-motion: reduce) { .gaze-dot { animation:none !important; } }
+@media (max-width:800px) { .gaze-indicator { top:auto; bottom:200px; right:16px; } }

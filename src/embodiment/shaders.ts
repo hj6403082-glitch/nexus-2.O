@@ -4,6 +4,7 @@ attribute float aCard; attribute float aSeed; attribute vec2 aCompute; attribute
 uniform mat4 uCards[10]; uniform float uTime; uniform float uPixelRatio; uniform float uSize;
 uniform vec2 uHead; uniform vec2 uMouth; uniform vec2 uEye; uniform float uJaw; uniform float uFlare; uniform float uReturn; uniform float uClock;
 uniform sampler2D uDisplace; uniform float uComputeSize; uniform float uUnder; uniform float uNet;
+uniform vec4 uPoke; // xyz: world-space touch point, w: seconds since the touch (<0 = none)
 varying vec3 vColor; varying vec3 vView; varying float vRadius; varying float vVisibility;
 float smoothRange(float a,float b,float x){float t=clamp((x-a)/(b-a),0.,1.);return t*t*(3.-2.*t);}
 mat3 ry(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
@@ -39,6 +40,11 @@ void main(){
  vec3 disp=vec3(0.);
  if(uComputeSize>0.) disp=texture2D(uDisplace,aCompute).xyz;
  target+=disp*body*1.5;
+ // Touch ripple: a ring of swelling particles expands from where the user
+ // tapped the figure and fades out, so the body visibly reacts to a touch.
+ float poke=0.;
+ if(uPoke.w>=0.){float pd=distance(target,uPoke.xyz);poke=exp(-pow((pd-uPoke.w*.8)*6.,2.))*exp(-uPoke.w*1.1)*body;}
+ target+=aNormal*poke*.14;
 
  // Returning, the figure does not rewind into the core: it disintegrates into
  // an expanding cloud of motes that streams back to the interface.
@@ -87,6 +93,7 @@ void main(){
  blue=mix(blue,vec3(.55,.95,.72)*(.45+.75*facing)*ao,lipTone*.5)+lipTone*uJaw*vec3(.12,.34,.20);
  // A faint holographic scan line drifts up the face while it is present.
  blue+=vec3(.10,.30,.18)*pow(.5+.5*sin(position.y*7.-uClock*2.2),48.)*presence;
+ blue+=poke*vec3(.45,.95,.7);
  vColor=mix(aColor,blue,body);
  // Energy: in-flight particles run hot cyan, the forming front flares, the
  // core flashes white and dispersing motes glow gold. Values above 1 bloom.
