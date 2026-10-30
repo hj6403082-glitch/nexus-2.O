@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
@@ -15,6 +16,7 @@ from zeno.agent.tools.base import Tool
 from zeno.agent.tools.devices import SensorCache
 from zeno.agent.tools.mqtt import mqtt_tools
 from zeno.agent.tools.network import network_tools
+from zeno.agent.tools.os_loader import load_os_tools, service_notifier
 from zeno.agent.tools.scripts import script_tools
 from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
 from zeno.agent.tools.web import FetchPolicy, web_tools
@@ -30,8 +32,9 @@ from zeno.memory.episodic import EpisodicMemory
 from zeno.memory.manager import MemoryManager
 from zeno.memory.semantic import FactMemory
 from zeno.orchestrator import Orchestrator
+from zeno.senses.audio_listener import WakeWordListener
 from zeno.senses.auth import DeviceAuth
-from zeno.senses.events import EventBus
+from zeno.senses.events import DeviceEvent, EventBus
 from zeno.senses.manager import ConnectionManager
 from zeno.senses.mqtt import MqttSense, load_mqtt_config
 
@@ -106,6 +109,8 @@ class ZenoDaemon:
         self.bus = EventBus(settings.event_queue_size)
         self.sensors = SensorCache()
         self.mqtt: MqttSense | None = None
+        self.wake: WakeWordListener | None = None
+        self.notifier = service_notifier()
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
         self._lifecycle = asyncio.Lock()
@@ -130,9 +135,26 @@ class ZenoDaemon:
                 await self._unwind()
                 self.state, self.error = "failed", str(error)
                 log.error("Zeno failed to start: %s", error)
+                self.notifier.status(f"Zeno could not start: {error}")
                 raise BootError(str(error)) from error
             self.state = "ready"
+            self._start_watchdog()
+            self.notifier.ready("Zeno is ready")
             log.info("Zeno is ready.")
+
+    def _start_watchdog(self) -> None:
+        interval = self.notifier.watchdog_interval()
+        if interval is None:
+            return
+
+        async def ping() -> None:
+            # Pinging from the event loop itself: a frozen loop stops the pings.
+            while True:
+                self.notifier.watchdog()
+                await asyncio.sleep(interval / 3)
+
+        task = asyncio.create_task(ping(), name="zeno-watchdog")
+        self._cleanups.append(task.cancel)
 
     async def _boot(self) -> Services:
         s = self.settings
@@ -156,6 +178,7 @@ class ZenoDaemon:
         self._cleanups.append(self.bus.stop)
         self._cleanups.append(self.devices.close_all)
         self._cleanups.append(self.sensors.attach(self.bus))
+        self._start_wake_word()
 
         tools = [  # Pillar 4: the agent's tools
             *builtin_tools(
@@ -166,6 +189,7 @@ class ZenoDaemon:
             ),
             *script_tools(s.scripts_dir, timeout=s.script_timeout, max_output=s.script_max_output),
             *await self._outbound_tools(),
+            *self._os_tools(),
         ]
         orchestrator = Orchestrator(
             engine=engine,
@@ -210,6 +234,30 @@ class ZenoDaemon:
             tools += mqtt_tools(mqtt, self.mqtt, self.sensors)
         return tools
 
+    def _os_tools(self) -> list[Tool[Any]]:
+        """Phase 3 tools for the OS Zeno runs on; each needs its own setting."""
+        toolset = load_os_tools(self.settings)
+        self._cleanups += toolset.cleanups
+        return toolset.tools
+
+    def _start_wake_word(self) -> None:
+        """Start the "Hey Zeno" listener on its own thread (Windows daemon, mic on).
+
+        The listener publishes "wake" events; a slow microphone read stays on the
+        thread and never blocks the loop. Only runs on Windows, where PyAudio and
+        openwakeword are installed; elsewhere voice wake is simply off."""
+        if not self.settings.wakeword or sys.platform != "win32":
+            return
+        from zeno.senses.audio_listener import build_listener
+
+        async def on_wake(event: DeviceEvent) -> None:
+            log.info("Wake word detected: %s (%.2f)", event.data["model"], event.data["confidence"])
+
+        self.bus.subscribe(on_wake, kind="wake")
+        self.wake = build_listener(self.settings, self.bus)
+        self.wake.start()
+        self._cleanups.append(self.wake.stop)
+
     async def _stop_mqtt(self) -> None:
         if self.mqtt is not None:
             await self.mqtt.stop()
@@ -221,6 +269,7 @@ class ZenoDaemon:
             if self.state in ("stopped", "failed"):
                 return
             self.state = "stopping"
+            self.notifier.stopping()
             await self._unwind()
             self._services = None
             self.state = "stopped"
@@ -248,6 +297,9 @@ class ZenoDaemon:
             server_header=False,
             proxy_headers=False,
             log_level="info",
+            # No console (pythonw): uvicorn's own stderr handlers would drop everything,
+            # so let its loggers reach the root logger's file instead.
+            log_config=None if sys.stderr is None else uvicorn.config.LOGGING_CONFIG,
         )
         self._server = uvicorn.Server(config)
         await self._server.serve()

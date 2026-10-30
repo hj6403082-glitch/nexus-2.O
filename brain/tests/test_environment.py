@@ -2,6 +2,7 @@
 
 import importlib
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -64,3 +65,43 @@ def test_pytorch_is_not_pulled_in() -> None:
 def test_banned_frameworks_are_not_installed(banned: str) -> None:
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(banned)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="dbus-fast is installed on Linux only")
+@pytest.mark.parametrize("module", ["dbus_fast", "dbus_fast.aio"])
+def test_phase3_linux_dependency_imports(module: str) -> None:
+    importlib.import_module(module)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="WinRT is installed on Windows only")
+@pytest.mark.parametrize(
+    "module",
+    ["winrt.windows.ui.notifications", "winrt.windows.data.xml.dom"],
+)
+def test_phase3_windows_dependency_imports(module: str) -> None:
+    importlib.import_module(module)
+
+
+REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements.txt"
+
+
+@pytest.mark.parametrize(
+    ("package", "marker"),
+    [
+        ("dbus-fast", 'sys_platform == "linux"'),
+        ("winrt-runtime", 'sys_platform == "win32"'),
+        ("winrt-Windows.UI.Notifications", 'sys_platform == "win32"'),
+        ("winrt-Windows.Data.Xml.Dom", 'sys_platform == "win32"'),
+    ],
+)
+def test_os_specific_packages_carry_a_platform_marker(package: str, marker: str) -> None:
+    """Each OS installs only its own desktop packages, so the other OS's pip never fails."""
+    lines = [
+        line for line in REQUIREMENTS.read_text().splitlines() if line.startswith(package + "==")
+    ]
+    assert len(lines) == 1, f"{package} must be pinned exactly once"
+    assert lines[0].endswith("; " + marker)
+
+
+def test_property_testing_is_available() -> None:
+    importlib.import_module("hypothesis")

@@ -73,8 +73,9 @@ def test_hello_registers_the_device_and_gets_a_welcome(harness: Harness) -> None
         assert conn is not None
         assert "actuator.relay" in conn.capabilities
     wait_until(lambda: harness.manager.devices() == [])
-    kinds = [e.kind for e in harness.events]
-    assert kinds[0] == "connected" and kinds[-1] == "disconnected"
+    # The device leaves the registry a moment before its event lands (seen on Windows).
+    wait_until(lambda: harness.events[-1].kind == "disconnected")
+    assert harness.events[0].kind == "connected"
 
 
 def test_the_first_frame_must_be_hello(harness: Harness) -> None:

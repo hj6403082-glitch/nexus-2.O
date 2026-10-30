@@ -44,3 +44,21 @@ numpy==2.5.4
 pywhispercpp==1.5.1
 piper-tts==1.8.0
 webrtcvad-wheels==2.0.14.post1
+
+# --- Phase 3: OS integration (ZENO_OS_INTEGRATION.md) ---
+# psutil (above) covers telemetry and Windows service status on both OSes.
+# Linux: D-Bus for desktop notifications and systemd unit status.
+dbus-fast==5.2.0; sys_platform == "linux"
+# Windows: WinRT toast notifications. 3.2.x is the stable line (4.x is brand new).
+winrt-runtime==3.2.1; sys_platform == "win32"
+winrt-Windows.UI.Notifications==3.2.1; sys_platform == "win32"
+winrt-Windows.Data.Xml.Dom==3.2.1; sys_platform == "win32"
+
+# --- J.A.R.V.I.S. Protocol: always-on Windows daemon (ZENO_GOD_MODE_WINDOWS.md) ---
+# Local wake-word ("Hey Zeno") on its own thread. numpy (above) feeds the model.
+# openwakeword needs onnxruntime (chromadb already pulls it in). Windows-only:
+# the daemon and its microphone live on the user's PC, not on the Linux brain host.
+openwakeword==0.6.0; sys_platform == "win32"
+# sounddevice bundles PortAudio through CFFI, so its wheels are ABI-independent and
+# install on any CPython (incl. 3.14) with no compiler. pyaudio has no cp314 wheel.
+sounddevice==0.5.2; sys_platform == "win32"

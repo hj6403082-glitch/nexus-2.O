@@ -3,7 +3,11 @@
 This folder is Zeno's native Python brain. The plans it follows are
 [`ZENO_ARCHITECTURE.md`](../ZENO_ARCHITECTURE.md) (approved 2026-10-19) and
 [`ZENO_PHASE2_ARCHITECTURE.md`](../ZENO_PHASE2_ARCHITECTURE.md) (vision, voice,
-watchers, tools; approved 2026-10-20). Read them before changing the design.
+watchers, tools; approved 2026-10-20) and
+[`ZENO_LINUX_INTEGRATION.md`](../ZENO_LINUX_INTEGRATION.md) (systemd, telemetry,
+run_command, D-Bus; approved 2026-10-26) and
+[`ZENO_OS_INTEGRATION.md`](../ZENO_OS_INTEGRATION.md) (the Windows half and the OS
+loader; approved 2026-10-26). Read them before changing the design.
 The Next.js app in `../src` is a separate subsystem.
 
 ## Locked decisions
@@ -194,7 +198,8 @@ that other pillars' tests use instead of the real backend.
 - Every step goes to the audit log (`JsonlAuditLog`, append-only, mode 600). If a
   record cannot be written the run raises `AuditError` before acting.
 - `tests/agent/test_safety.py` fails on `eval`, `exec`, `__import__`, `importlib`,
-  `os.system` or any `shell=` argument anywhere in `zeno/agent/`, and when an outbound
+  `os.system` or any `shell=` argument anywhere in `zeno/agent/` or `zeno/hostos/`,
+  and when an outbound
   network library (`httpx`, `httpcore`, `icmplib`, `asyncssh`, `aiomqtt`) is imported
   outside its own module.
 - Risk tiers: READ_ONLY runs without asking; MUTATING and PRIVILEGED need the owner's
@@ -247,6 +252,73 @@ that other pillars' tests use instead of the real backend.
   rejects. Check new tool schemas with the tiny-GGUF test that validates the full
   tool grammar through the engine.
 
+## OS integration (Phase 3, Linux and Windows)
+
+- Off until `ZENO_OS_TOOLS=true` (telemetry, `notify_desktop`, `service_status`)
+  and, separately, `ZENO_RUN_COMMAND=true`. `agent/tools/os_loader.py` reads
+  `platform.system()` once and imports only `os_linux.py` or `os_windows.py`;
+  other systems get telemetry only. The same tool names and arguments on both,
+  except the runner: `run_command` (Linux) or `run_powershell` (Windows).
+- Isolation is tested: nothing in `os_linux.py` or `zeno/hostos/linux/` imports
+  Windows code and the reverse (`tests/hostos/test_os_loader.py`), and a boot on
+  one OS never loads the other's modules, `dbus_fast` or `winrt`.
+- Both runners are PRIVILEGED and refuse before approval through the tool's
+  `precheck` (which may be async and fails closed on error or after
+  `PRECHECK_TIMEOUT`). A refused call is answered with its reason and never reaches
+  the owner; the check runs again just before executing.
+  - Linux: `hostos/linux/command_policy.py` splits the line itself (no shell) and
+    refuses shell syntax, code-running programs and catastrophic commands.
+  - Windows: `hostos/windows/ps_parse.ps1` asks PowerShell's own parser for the
+    syntax tree (it parses, never runs) and `hostos/windows/ps_policy.py` refuses
+    anything outside a static subset (one pipeline, literal command names and
+    arguments, script blocks only as Where-/ForEach-Object filters) plus
+    catastrophic commands. The approved command runs with `-NoProfile`,
+    `-ExecutionPolicy Restricted` and Constrained Language Mode. This is the one
+    sanctioned way model-written text reaches PowerShell.
+  - Add a rule with a parametrized test and, for path or flag rules, a hypothesis
+    property test over spellings. Windows policy tests build trees with
+    `tests/windows/ps_trees.py`; `tests/windows/test_ps_parse.py` runs the same
+    commands through the real parser wherever PowerShell is installed (CI).
+- Only `agent/tools/scripts.py` and `hostos/process.py` may start processes, the
+  latter only with `create_subprocess_exec` (safety test). Each OS passes in how
+  to start and stop a process group (`hostos/linux/process.py`,
+  `hostos/windows/process.py`).
+- Services: `daemons/zeno.service` (systemd user unit, `Type=notify`,
+  `WatchdogSec=60`, installed by `daemons/install-service.sh`;
+  `hostos/linux/systemd.py` sends READY, WATCHDOG and STOPPING) and
+  `daemons/windows_setup.ps1` (a per-user Scheduled Task at logon, `RunLevel
+  Limited`, plus the `Zeno.Brain` toast identity under HKCU). Without a console
+  (pythonw) logs go to `data/logs/zeno.log`.
+- Tests mock D-Bus, WinRT, psutil and the runners, so both toolsets' tests run on
+  either OS; tests that need the real OS skip elsewhere. D-Bus integration tests use
+  a private `dbus-daemon`. Type-check both: `mypy zeno` and
+  `mypy --platform win32 zeno`. CI (`.github/workflows/brain-tests.yml`) runs
+  everything on Ubuntu and Windows.
+
+## J.A.R.V.I.S. Protocol (always-on Windows daemon, ZENO_GOD_MODE_WINDOWS.md)
+
+- `daemons/install_zeno_windows.ps1` is the Windows installer: a per-user logon
+  Scheduled Task (`RunLevel Limited`, never admin), the `Zeno.Brain` toast identity,
+  and the "Send to Zeno" Explorer menu. The daemon runs as the user; a command that
+  needs admin asks via a UAC prompt at that moment. There is no "run anything as
+  admin" tool — that would be an escape hatch out of the PowerShell sandbox.
+- Wake word ("Hey Zeno"): `senses/audio_listener.py`. A `threading.Thread` reads the
+  mic and scores frames with openwakeword; on a hit over `ZENO_WAKEWORD_CONFIDENCE`
+  it calls `loop.call_soon_threadsafe` to publish a `"wake"` `DeviceEvent` — the only
+  thread→loop bridge, so the mic never blocks the EventBus. On by default
+  (`ZENO_WAKEWORD`), Windows only (sounddevice/openwakeword are `sys_platform == "win32"`
+  deps); the daemon skips it elsewhere. The stream and detector are injected, so
+  tests use fakes and never open a microphone. openwakeword ships no models in its
+  wheel and `tflite-runtime` is Linux-only, so the detector fetches the models with
+  `download_models()` and runs under onnxruntime (`inference_framework="onnx"`);
+  `setup.ps1` pre-fetches them so the first "Hey Zeno" works offline.
+- "Send to Zeno": `hostos/windows/shell_integration.py` writes per-user keys under
+  `HKCU\Software\Classes` (winreg injected for tests, never the real registry);
+  `hostos/windows/send_to_zeno.py` is the windowless client that sends the path to
+  the loopback chat WebSocket with the local token. No new network surface.
+- Request 3 (`powershell_execute` + HITL) is the existing `run_powershell`: already
+  PRIVILEGED, parsed, policy-checked, approval-gated, stdout+stderr returned.
+
 ## Safety rules
 
 - Servers bind to `127.0.0.1` in v1. No `0.0.0.0`.
@@ -257,7 +329,10 @@ that other pillars' tests use instead of the real backend.
   audit log.
 - The one place a model-written command reaches a shell is `ssh_run`, on a host the
   owner listed, with key auth and strict known_hosts, approved each time, and never
-  in proactive runs.
+  in proactive runs. `run_command` runs local programs without a shell, after the
+  command policy and the owner's approval. `run_powershell` hands PowerShell only
+  what its parser and the PowerShell policy accepted, after the owner's approval,
+  in Constrained Language Mode.
 - Secrets never go in the config files: the MQTT password comes from the environment
   variable that `password_env` names.
 - Tool output, memories and device data are untrusted data, never instructions.

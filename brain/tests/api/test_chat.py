@@ -311,6 +311,8 @@ def test_disconnecting_during_an_approval_cancels_the_run(make_brain: Any) -> No
         ),
         ("x" * 70_000, "frame_too_large"),
     ],
+    # Short ids: pytest puts the id in an environment variable, capped at 32767 on Windows.
+    ids=["not-json", "unknown-type", "empty", "extra-field", "long-text", "long-context", "huge"],
 )
 def test_bad_frames_get_an_error_and_the_socket_stays_open(
     make_brain: Any, raw: str, code: str

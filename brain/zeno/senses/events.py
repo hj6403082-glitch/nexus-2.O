@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 log = logging.getLogger(__name__)
 
-EventKind = Literal["connected", "disconnected", "sensor", "telemetry"]
+EventKind = Literal["connected", "disconnected", "sensor", "telemetry", "wake"]
 Handler = Callable[["DeviceEvent"], Awaitable[None]]
 
 

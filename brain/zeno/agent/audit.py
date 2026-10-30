@@ -12,6 +12,7 @@ AuditKind = Literal[
     "run_started",
     "thought",
     "action",
+    "refused",
     "approval_requested",
     "approval",
     "observation",

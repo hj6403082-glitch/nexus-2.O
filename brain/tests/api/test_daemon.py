@@ -218,3 +218,42 @@ def test_chat_is_refused_until_the_brain_is_ready(tmp_path: Path) -> None:
     ):
         pass
     assert refused.value.code == 1013  # try again later
+
+
+def test_wake_word_listener_starts_on_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log = Log()
+    daemon, _ = make_daemon(tmp_path, log, wakeword=True)
+    started: list[str] = []
+
+    class FakeListener:
+        def start(self, loop: Any = None) -> None:
+            started.append("start")
+
+        def stop(self) -> None:
+            started.append("stop")
+
+    monkeypatch.setattr("zeno.daemon.sys.platform", "win32")
+    monkeypatch.setattr("zeno.senses.audio_listener.build_listener", lambda s, b: FakeListener())
+    with TestClient(daemon.app):
+        assert started == ["start"]
+    assert started == ["start", "stop"]
+
+
+def test_wake_word_listener_is_skipped_off_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log = Log()
+    daemon, _ = make_daemon(tmp_path, log, wakeword=True)
+    monkeypatch.setattr("zeno.daemon.sys.platform", "linux")
+    with TestClient(daemon.app):
+        assert daemon.wake is None
+
+
+def test_wake_word_can_be_turned_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    log = Log()
+    daemon, _ = make_daemon(tmp_path, log, wakeword=False)
+    monkeypatch.setattr("zeno.daemon.sys.platform", "win32")
+    with TestClient(daemon.app):
+        assert daemon.wake is None

@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     """Seconds to wait for the owner to approve a state-changing tool before refusing."""
     agent_max_observation_chars: int = Field(2000, ge=1)
     audit_log_path: Path = Path("data/audit/agent.jsonl")
+    log_file: Path = Path("data/logs/zeno.log")
+    """Where logs go when there is no console (pythonw, the Windows logon task)."""
     scripts_dir: Path = Path("scripts")
     """Owner-curated Python scripts the agent may run (with approval), by name."""
     script_timeout: float = Field(30.0, gt=0.0)
@@ -86,6 +88,28 @@ class Settings(BaseSettings):
     ssh_max_output: int = Field(4000, ge=100)
     mqtt_file: Path = Path("data/mqtt.json")
     """Broker, readable topics and actuators; no file, no MQTT."""
+
+    # Phase 3: OS integration (Linux and Windows; ZENO_OS_INTEGRATION.md).
+    os_tools: bool = False
+    """Offer telemetry (health, temperatures, processes), desktop notifications and
+    service status for this OS."""
+    run_command: bool = False
+    """Offer run_command (Linux, no shell) or run_powershell (Windows, checked and
+    constrained): one command at a time, your approval every time."""
+    run_command_roots: list[Path] = [Path("~")]
+    """Folders a command's working folder must be inside."""
+    run_command_timeout: float = Field(30.0, ge=1.0, le=120.0)
+    run_command_max_output: int = Field(4000, ge=100)
+    """Characters kept from each of stdout and stderr."""
+    desktop_notify_per_hour: int = Field(30, ge=1)
+
+    # J.A.R.V.I.S. Protocol: the always-on Windows daemon (ZENO_GOD_MODE_WINDOWS.md).
+    wakeword: bool = True
+    """Listen for "Hey Zeno" on the microphone (Windows daemon). On by default."""
+    wakeword_model_path: Path | None = None
+    """The openwakeword .onnx model. Blank uses the listener's built-in default."""
+    wakeword_confidence: float = Field(0.6, ge=0.0, le=1.0)
+    """How sure the model must be before a "wake" event fires."""
 
     @field_validator("web_search_url")
     @classmethod
