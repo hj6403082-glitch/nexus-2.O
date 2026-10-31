@@ -44,8 +44,8 @@ Manual equivalent: `python -m venv .venv`, then
 
 Phase 2 model files are never downloaded silently. Ask for them with
 `-Vision` / `-Voice` (`--vision` / `--voice`): setup fetches the files listed in
-`model-downloads.txt` into `brain/models/` (git-ignored) and skips ones already
-there. `-VoiceExtra` (`--voice-extra`) installs the optional Kokoro and
+`model-downloads.txt` into `brain/models/vision/` and `brain/models/voice/`
+(git-ignored) and skips ones already there. `-VoiceExtra` (`--voice-extra`) installs the optional Kokoro and
 faster-whisper adapters from `requirements-voice-extra.txt`. Flags combine with
 `-Cuda`.
 

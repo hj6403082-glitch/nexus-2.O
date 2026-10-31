@@ -4,7 +4,7 @@ import ipaddress
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -113,8 +113,11 @@ class Settings(BaseSettings):
     """How sure the model must be before a "wake" event fires."""
 
     # Multimodal layer: sight and voice workers (ZENO_MULTIMODAL_ARCH.md).
-    vision: bool = False
-    """Offer analyze_vision_frame. Needs a vision model (vision_model_path + mmproj)."""
+    vision: bool = Field(
+        False, validation_alias=AliasChoices("ZENO_VISION_ENABLED", "ZENO_VISION", "vision")
+    )
+    """ZENO_VISION_ENABLED (or ZENO_VISION). Offer analyze_vision_frame. Needs a vision
+    model (vision_model_path + mmproj)."""
     vision_model_path: Path | None = None
     """The vision model's .gguf (e.g. Moondream2)."""
     vision_mmproj_path: Path | None = None
@@ -133,9 +136,14 @@ class Settings(BaseSettings):
     frame_max_bytes: int = Field(4 * 1024 * 1024, ge=1024)
     frame_store_max_bytes: int = Field(32 * 1024 * 1024, ge=1024)
 
-    voice: bool = True
-    """After "Hey Zeno", transcribe the command and answer out loud. Stays off until the
-    speech engines are installed (faster-whisper, a Piper voice)."""
+    voice: bool = Field(
+        True, validation_alias=AliasChoices("ZENO_VOICE_ENABLED", "ZENO_VOICE", "voice")
+    )
+    """ZENO_VOICE_ENABLED (or ZENO_VOICE). After "Hey Zeno", transcribe the command and
+    answer out loud. Stays off until the speech engines are installed (faster-whisper,
+    a Piper voice)."""
+    stt_engine: Literal["faster-whisper"] = "faster-whisper"
+    """The speech-to-text engine. faster-whisper is the only one wired today."""
     stt_model: str = "base.en"
     """faster-whisper model name or folder."""
     stt_device: Literal["cpu", "cuda"] = "cpu"

@@ -95,3 +95,63 @@ def test_the_env_example_loads_as_is() -> None:
     example = Path(__file__).parents[1] / ".env.example"
     settings = Settings(_env_file=example)
     assert settings.web_search_url is None and not settings.network_tools
+
+
+# --- Multimodal switches: Boss's .env names map onto the settings the daemon reads ---
+
+
+def test_multimodal_env_names_map_to_the_worker_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    env = {
+        "ZENO_VISION_ENABLED": "true",
+        "ZENO_VISION_HANDLER": "moondream",
+        "ZENO_VISION_MODEL_PATH": "models/vision/moondream2-text-model-f16.gguf",
+        "ZENO_VISION_MMPROJ_PATH": "models/vision/moondream2-mmproj-f16.gguf",
+        "ZENO_VOICE_ENABLED": "true",
+        "ZENO_STT_ENGINE": "faster-whisper",
+        "ZENO_STT_MODEL": "base.en",
+        "ZENO_STT_DEVICE": "cpu",
+        "ZENO_STT_COMPUTE_TYPE": "int8",
+    }
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    s = Settings(_env_file=None)
+    assert s.vision is True
+    assert s.vision_handler == "moondream"
+    assert s.vision_model_path == Path("models/vision/moondream2-text-model-f16.gguf")
+    assert s.vision_mmproj_path == Path("models/vision/moondream2-mmproj-f16.gguf")
+    assert s.voice is True
+    assert s.stt_engine == "faster-whisper"
+    assert (s.stt_model, s.stt_device, s.stt_compute_type) == ("base.en", "cpu", "int8")
+
+
+def test_multimodal_switches_also_take_the_short_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZENO_VISION", "true")
+    monkeypatch.setenv("ZENO_VOICE", "false")
+    s = Settings(_env_file=None)
+    assert s.vision is True
+    assert s.voice is False
+    assert Settings(_env_file=None, vision=False, voice=True).vision is False
+
+
+def test_an_unknown_stt_engine_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZENO_STT_ENGINE", "whisper-magic")
+    with pytest.raises(ValueError, match="faster-whisper"):
+        Settings(_env_file=None)
+
+
+def test_the_example_env_file_loads_and_names_only_real_settings() -> None:
+    example = Path(__file__).parents[1] / ".env.example"
+    names = {
+        line.split("=", 1)[0].lstrip("# ").strip()
+        for line in example.read_text(encoding="utf-8").splitlines()
+        if "=" in line and line.lstrip("# ").startswith("ZENO_")
+    }
+    known = {"ZENO_MQTT_PASSWORD"}  # read via mqtt.json's password_env, not Settings
+    for name, field in Settings.model_fields.items():
+        known.add(f"ZENO_{name.upper()}")
+        alias = field.validation_alias
+        if alias is not None:
+            choices = getattr(alias, "choices", [alias])
+            known.update(str(c).upper() for c in choices)
+    assert names <= known, f"unknown settings in .env.example: {sorted(names - known)}"
+    assert {"ZENO_VISION_ENABLED", "ZENO_VOICE_ENABLED", "ZENO_STT_ENGINE"} <= names
