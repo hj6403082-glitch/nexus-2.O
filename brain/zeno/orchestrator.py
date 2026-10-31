@@ -11,7 +11,7 @@ from zeno.agent.audit import AuditLog
 from zeno.agent.events import AgentEvent, Finished
 from zeno.agent.loop import AgentLimits, ReActAgent
 from zeno.agent.registry import ToolRegistry
-from zeno.agent.tools.base import Tool
+from zeno.agent.tools.base import Origin, Tool
 from zeno.agent.tools.ui import Emit, ui_tools
 from zeno.config import Settings
 from zeno.inference.base import ChatMessage, GenerationParams, InferenceEngine, InferenceError
@@ -19,6 +19,7 @@ from zeno.inference.prompt import PromptBuilder
 from zeno.memory.base import MemoryStoreError
 from zeno.memory.manager import MemoryManager
 from zeno.memory.working import WorkingMemory
+from zeno.multimodal.speech import Publish, speak_answers
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class Orchestrator:
         settings: Settings,
         base_tools: Sequence[Tool[Any]],
         system_prompt: str = PERSONA,
+        speak: Publish | None = None,
     ) -> None:
         self.engine = engine
         self.memory = memory
@@ -54,6 +56,8 @@ class Orchestrator:
         self.settings = settings
         self.base_tools = list(base_tools)
         self.system_prompt = system_prompt
+        self.speak = speak
+        """Where spoken answers go (the EventBus's publish); None: Zeno has no voice."""
         self.limits = AgentLimits.from_settings(settings)
         self.params = GenerationParams(
             max_tokens=settings.max_tokens,
@@ -66,19 +70,42 @@ class Orchestrator:
         return Conversation(WorkingMemory(self.settings.working_memory_messages))
 
     def tool_names(self) -> list[str]:
+        """Every tool an owner-started chat may use."""
         return self._registry(None).names()
 
     async def respond(
-        self, conversation: Conversation, text: str, *, emit: Emit, context: str = ""
+        self,
+        conversation: Conversation,
+        text: str,
+        *,
+        emit: Emit,
+        context: str = "",
+        origin: Origin = "chat",
+        speak: bool | None = None,
+        turn_id: str | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         """Answer ``text`` in ``conversation``, yielding every agent event.
 
         ``context`` (what the client is showing) joins this turn's prompt only.
-        UI tools send their commands through ``emit``. The exchange joins the
-        conversation once the run ends; messages pushed out of the window are
-        archived to long-term memory.
+        UI tools send their commands through ``emit``. ``origin`` decides which tools
+        the run may use. When ``speak`` is true (default: the speak_chat_answers
+        setting) the answer is also pushed to text-to-speech, tagged ``turn_id``.
+        The exchange joins the conversation once the run ends; messages pushed out of
+        the window are archived to long-term memory.
         """
-        registry = self._registry(emit)
+        events = self._respond(conversation, text, emit=emit, context=context, origin=origin)
+        if speak is None:
+            speak = self.settings.speak_chat_answers
+        if speak and self.speak is not None:
+            events = speak_answers(events, self.speak, turn_id=turn_id)
+        async with aclosing(events) as stream:
+            async for event in stream:
+                yield event
+
+    async def _respond(
+        self, conversation: Conversation, text: str, *, emit: Emit, context: str, origin: Origin
+    ) -> AsyncGenerator[AgentEvent, None]:
+        registry = self._registry(emit).for_origin(origin)
         user = ChatMessage("user", text)
         try:
             builder = PromptBuilder(

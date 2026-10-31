@@ -23,8 +23,9 @@ class Risk(StrEnum):
     every time, and never offered to proactive runs."""
 
 
-Origin = Literal["chat", "proactive"]
-"""Who started a run: the owner chatting, or Zeno acting on something it noticed."""
+Origin = Literal["chat", "proactive", "voice"]
+"""Who started a run: the owner chatting, Zeno acting on something it noticed, or a
+spoken command (anyone in the room could have said it, so no PRIVILEGED tools)."""
 
 
 def available_in(risk: Risk, origin: Origin) -> bool:

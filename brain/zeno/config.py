@@ -2,6 +2,7 @@
 
 import ipaddress
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -110,6 +111,49 @@ class Settings(BaseSettings):
     """The openwakeword .onnx model. Blank uses the listener's built-in default."""
     wakeword_confidence: float = Field(0.6, ge=0.0, le=1.0)
     """How sure the model must be before a "wake" event fires."""
+
+    # Multimodal layer: sight and voice workers (ZENO_MULTIMODAL_ARCH.md).
+    vision: bool = False
+    """Offer analyze_vision_frame. Needs a vision model (vision_model_path + mmproj)."""
+    vision_model_path: Path | None = None
+    """The vision model's .gguf (e.g. Moondream2)."""
+    vision_mmproj_path: Path | None = None
+    """The matching image projector .gguf (mmproj)."""
+    vision_handler: Literal["moondream", "llava", "mtmd"] = "moondream"
+    vision_context_size: int = Field(2048, ge=512)
+    vision_max_tokens: int = Field(200, ge=1, le=2000)
+    vision_max_side: int = Field(768, ge=64, le=4096)
+    """Images are downscaled to at most this many pixels on the long side."""
+    vision_max_pixels: int = Field(40_000_000, ge=4096)
+    """Images with more pixels are refused before decoding (decompression bombs)."""
+    vision_timeout: float = Field(60.0, gt=0.0)
+    vision_queue_size: int = Field(4, ge=1)
+    frame_ttl: float = Field(60.0, gt=0.0)
+    """Seconds an image stays available to the vision tool. Never written to disk."""
+    frame_max_bytes: int = Field(4 * 1024 * 1024, ge=1024)
+    frame_store_max_bytes: int = Field(32 * 1024 * 1024, ge=1024)
+
+    voice: bool = True
+    """After "Hey Zeno", transcribe the command and answer out loud. Stays off until the
+    speech engines are installed (faster-whisper, a Piper voice)."""
+    stt_model: str = "base.en"
+    """faster-whisper model name or folder."""
+    stt_device: Literal["cpu", "cuda"] = "cpu"
+    stt_compute_type: str = "int8"
+    tts_voice_path: Path | None = None
+    """The Piper voice (.onnx, with its .onnx.json beside it)."""
+    vad_aggressiveness: int = Field(2, ge=0, le=3)
+    vad_silence_ms: int = Field(800, ge=100, le=5000)
+    """This much silence after speech ends the command."""
+    voice_no_speech_s: float = Field(5.0, gt=0.0)
+    """Give up when nothing is said this long after the wake word."""
+    voice_max_utterance_s: float = Field(15.0, gt=0.0, le=60.0)
+    audio_in_queue_size: int = Field(256, ge=1)
+    audio_out_queue_size: int = Field(32, ge=1)
+    speak_chat_answers: bool = False
+    """Also speak answers to typed chat messages (voice commands are always spoken)."""
+    model_idle_unload: float = Field(600.0, gt=0.0)
+    """Seconds a vision or speech model stays loaded without work before it is freed."""
 
     @field_validator("web_search_url")
     @classmethod

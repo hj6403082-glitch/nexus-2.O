@@ -15,7 +15,17 @@ from typing import Any, Literal
 
 log = logging.getLogger(__name__)
 
-EventKind = Literal["connected", "disconnected", "sensor", "telemetry", "wake"]
+EventKind = Literal[
+    "connected",
+    "disconnected",
+    "sensor",
+    "telemetry",
+    "wake",
+    # The multimodal layer's internal events (senses/protocol.py); never sent by devices.
+    "vision_frame",
+    "audio_command",
+    "speech_request",
+]
 Handler = Callable[["DeviceEvent"], Awaitable[None]]
 
 

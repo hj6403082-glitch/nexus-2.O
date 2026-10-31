@@ -1,6 +1,6 @@
 # Zeno multimodal layer: sight and voice without blocking the EventBus
 
-**Status:** DRAFT, waiting for Boss's approval. No code is written until it is approved.
+**Status:** approved by Boss 2026-10-31 (all section 11 defaults). Built in `brain/zeno/multimodal/`; the real engines (`LlamaVisionEngine`, `FasterWhisperStt`, `PiperTts`, `SoundDeviceSink`) live together in `multimodal/adapters.py` rather than one file each, and are not yet tried against real models.
 **Builds on:** `brain/` on main after PR #21 (EventBus, ReAct loop, tool registry, the
 Windows wake-word listener). It replaces the in-brain processing parts of modules C and D
 in [`ZENO_PHASE2_ARCHITECTURE.md`](ZENO_PHASE2_ARCHITECTURE.md); the device media frames
@@ -91,8 +91,8 @@ are internal, not a boundary).
 | `audio_in_queue` | `AudioChunk(utterance_id, seq, pcm: bytes, final, end_reason)` | 256 chunks (~20 s of 80 ms audio) | The chunk is dropped and counted; the worker sees the `seq` gap and discards that utterance (a half-heard command is worse than "sorry, say that again"). |
 | `audio_out_queue` | `SpeechJob(request_id, text, turn_id)` | 32 sentences | The newest request is dropped and logged; barge-in clears the whole queue. |
 
-Each worker publishes counters (`processed`, `dropped`, `failed`, queue depth) that the
-existing status endpoint can show.
+Each worker keeps counters (`processed`, `dropped`, `failed`). Showing them on the status
+endpoint is a follow-up.
 
 ---
 

@@ -76,11 +76,13 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
     from zeno.agent.tools.ssh import SshConfig, ssh_tools
     from zeno.agent.tools.telemetry import telemetry_tools
     from zeno.agent.tools.ui import ui_tools
+    from zeno.agent.tools.vision import vision_tools
     from zeno.agent.tools.web import FetchPolicy, web_tools
     from zeno.memory.episodic import EpisodicMemory
     from zeno.memory.fake import HashEmbedder, InMemoryVectorStore
     from zeno.memory.manager import MemoryManager
     from zeno.memory.semantic import FactMemory
+    from zeno.multimodal.queues import MultimodalQueues
     from zeno.senses.manager import ConnectionManager
     from zeno.senses.mqtt import MqttConfig
 
@@ -141,9 +143,11 @@ async def test_the_full_built_in_tool_grammar_compiles_in_llama_cpp(
             *telemetry_tools(),
             *desktop_tools(NoDesktop()),
             *command_tools(CommandSettings(roots=[tmp_path])),
+            *vision_tools(MultimodalQueues.create()),
         ]
     )
     assert {"run_command", "notify_desktop", "top_processes"} <= set(registry.names())
+    assert "analyze_vision_frame" in registry.names()
     assert {"ping", "fetch_page", "ssh_run", "actuate_light", "mqtt_read"} <= set(registry.names())
     await engine.load()
     backend = engine._backend  # the real grammar parser lives here
