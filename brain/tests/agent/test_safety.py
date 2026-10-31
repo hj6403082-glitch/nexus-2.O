@@ -9,8 +9,14 @@ import zeno.agent
 
 AGENT_DIR = Path(zeno.agent.__file__).parent
 ZENO_DIR = AGENT_DIR.parent
-# The agent and the OS back ends its tools drive.
-SOURCES = sorted([*AGENT_DIR.rglob("*.py"), *(ZENO_DIR / "hostos").rglob("*.py")])
+# The agent, the OS back ends its tools drive, and the multimodal workers its tools feed.
+SOURCES = sorted(
+    [
+        *AGENT_DIR.rglob("*.py"),
+        *(ZENO_DIR / "hostos").rglob("*.py"),
+        *(ZENO_DIR / "multimodal").rglob("*.py"),
+    ]
+)
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__"}
 FORBIDDEN_MODULES = {"importlib", "pickle", "marshal", "ctypes"}
 FORBIDDEN_ATTRIBUTES = {

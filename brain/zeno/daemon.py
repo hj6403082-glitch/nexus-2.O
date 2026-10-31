@@ -19,6 +19,7 @@ from zeno.agent.tools.network import network_tools
 from zeno.agent.tools.os_loader import load_os_tools, service_notifier
 from zeno.agent.tools.scripts import script_tools
 from zeno.agent.tools.ssh import load_ssh_config, ssh_tools
+from zeno.agent.tools.vision import vision_tools
 from zeno.agent.tools.web import FetchPolicy, web_tools
 from zeno.api.app import create_api
 from zeno.api.auth import load_or_create_token
@@ -31,6 +32,12 @@ from zeno.memory.embedder import LlamaEmbedder
 from zeno.memory.episodic import EpisodicMemory
 from zeno.memory.manager import MemoryManager
 from zeno.memory.semantic import FactMemory
+from zeno.multimodal.adapters import MultimodalFactories, default_factories
+from zeno.multimodal.frames import FrameStore
+from zeno.multimodal.queues import MultimodalQueues
+from zeno.multimodal.vision_worker import VisionWorker
+from zeno.multimodal.voice_turn import VoiceTurnHandler
+from zeno.multimodal.voice_worker import VoiceWorker
 from zeno.orchestrator import Orchestrator
 from zeno.senses.audio_listener import WakeWordListener
 from zeno.senses.auth import DeviceAuth
@@ -96,8 +103,10 @@ class ZenoDaemon:
         engine_factory: Callable[[Settings], Engine] = default_engine,
         embedder_factory: Callable[[Settings], LoadableEmbedder] = default_embedder,
         store_factory: Callable[[Settings], VectorStore] = default_store,
+        multimodal: MultimodalFactories | None = None,
     ) -> None:
         self.settings = settings
+        self._multimodal = multimodal or default_factories()
         self._engine_factory = engine_factory
         self._embedder_factory = embedder_factory
         self._store_factory = store_factory
@@ -110,6 +119,12 @@ class ZenoDaemon:
         self.sensors = SensorCache()
         self.mqtt: MqttSense | None = None
         self.wake: WakeWordListener | None = None
+        # The multimodal layer (ZENO_MULTIMODAL_ARCH.md); each part exists only when on.
+        self.queues: MultimodalQueues | None = None
+        self.frames: FrameStore | None = None
+        self.vision: VisionWorker | None = None
+        self.voice: VoiceWorker | None = None
+        self.voice_turns: VoiceTurnHandler | None = None
         self.notifier = service_notifier()
         self._services: Services | None = None
         self._cleanups: list[Callable[[], Any]] = []
@@ -178,7 +193,11 @@ class ZenoDaemon:
         self._cleanups.append(self.bus.stop)
         self._cleanups.append(self.devices.close_all)
         self._cleanups.append(self.sensors.attach(self.bus))
-        self._start_wake_word()
+        self.queues = MultimodalQueues.create(
+            vision_size=s.vision_queue_size,
+            audio_in_size=s.audio_in_queue_size,
+            audio_out_size=s.audio_out_queue_size,
+        )
 
         tools = [  # Pillar 4: the agent's tools
             *builtin_tools(
@@ -190,6 +209,7 @@ class ZenoDaemon:
             *script_tools(s.scripts_dir, timeout=s.script_timeout, max_output=s.script_max_output),
             *await self._outbound_tools(),
             *self._os_tools(),
+            *await self._start_vision(),
         ]
         orchestrator = Orchestrator(
             engine=engine,
@@ -197,7 +217,10 @@ class ZenoDaemon:
             audit=JsonlAuditLog(s.audit_log_path),
             settings=s,
             base_tools=tools,
+            speak=self.bus.publish,
         )
+        await self._start_voice(orchestrator)
+        self._start_wake_word()  # last: its captured audio feeds the voice worker
         return Services(
             engine=engine,
             embedder=embedder,
@@ -240,6 +263,75 @@ class ZenoDaemon:
         self._cleanups += toolset.cleanups
         return toolset.tools
 
+    async def _start_vision(self) -> list[Tool[Any]]:
+        """The vision worker and its tool, when vision is on and a model is configured."""
+        s, queues = self.settings, self.queues
+        if not s.vision or queues is None:
+            return []
+        missing = self._multimodal.vision_missing(s)
+        if missing is not None:
+            log.warning("Vision is on but %s; analyze_vision_frame is not offered.", missing)
+            return []
+        factory = self._multimodal.vision
+        self.frames = FrameStore(
+            self.bus,
+            ttl=s.frame_ttl,
+            max_total_bytes=s.frame_store_max_bytes,
+            max_frame_bytes=s.frame_max_bytes,
+        )
+        self.vision = VisionWorker(
+            queues,
+            self.frames,
+            lambda: factory(s),
+            max_tokens=s.vision_max_tokens,
+            max_side=s.vision_max_side,
+            max_pixels=s.vision_max_pixels,
+            idle_unload=s.model_idle_unload,
+        )
+        self._cleanups.append(self._stop_vision)
+        await self.vision.start()
+        return vision_tools(queues, timeout=s.vision_timeout)
+
+    async def _stop_vision(self) -> None:
+        if self.vision is not None:
+            await self.vision.stop()
+        self.vision = self.frames = None
+
+    async def _start_voice(self, orchestrator: Orchestrator) -> None:
+        """Speech to text, voice turns and text to speech, when their engines exist."""
+        s, queues, factories = self.settings, self.queues, self._multimodal
+        if not s.voice or queues is None:
+            return
+        missing = factories.voice_missing(s)
+        if missing is not None:
+            log.info("Voice replies are off: %s. The wake word still works.", missing)
+            return
+        self.voice = VoiceWorker(
+            queues,
+            self.bus,
+            stt_factory=lambda: factories.stt(s),
+            tts_factory=lambda: factories.tts(s),
+            sink=factories.sink(s),
+            max_utterance_s=s.voice_max_utterance_s,
+            idle_unload=s.model_idle_unload,
+        )
+        self.voice_turns = VoiceTurnHandler(orchestrator, self.bus)
+        detach_voice = self.voice.attach()
+        detach_turns = self.voice_turns.attach()
+        self.voice.on_interrupt(self.voice_turns.cancel)
+
+        async def stop_voice() -> None:
+            detach_turns()
+            detach_voice()
+            if self.voice_turns is not None:
+                await self.voice_turns.stop()
+            if self.voice is not None:
+                await self.voice.stop()
+            self.voice = self.voice_turns = None
+
+        self._cleanups.append(stop_voice)
+        await self.voice.start()
+
     def _start_wake_word(self) -> None:
         """Start the "Hey Zeno" listener on its own thread (Windows daemon, mic on).
 
@@ -254,7 +346,9 @@ class ZenoDaemon:
             log.info("Wake word detected: %s (%.2f)", event.data["model"], event.data["confidence"])
 
         self.bus.subscribe(on_wake, kind="wake")
-        self.wake = build_listener(self.settings, self.bus)
+        # With voice on, the command after "Hey Zeno" goes to the voice worker's queue.
+        sink = self.queues.offer_audio if self.voice is not None and self.queues else None
+        self.wake = build_listener(self.settings, self.bus, capture_sink=sink)
         self.wake.start()
         self._cleanups.append(self.wake.stop)
 

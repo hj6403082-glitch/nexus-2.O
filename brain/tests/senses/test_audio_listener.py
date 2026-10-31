@@ -7,6 +7,7 @@ import asyncio
 import threading
 from collections.abc import Mapping
 
+from zeno.multimodal.queues import AudioChunk
 from zeno.senses.audio_listener import WakeWordListener
 from zeno.senses.events import EventBus
 
@@ -154,3 +155,126 @@ def test_a_failed_start_is_swallowed() -> None:
         wl._run()  # a missing mic must not crash the daemon
     finally:
         wl._loop.close()
+
+
+# --- Wake-word handoff: after "Hey Zeno", microphone frames go to the voice worker ---
+
+FRAME_BYTES = 2560  # 80 ms of 16 kHz int16
+WAKE = b"W" * FRAME_BYTES
+SPEECH = b"S" * FRAME_BYTES
+SILENCE = b"\x00" * FRAME_BYTES
+
+
+class FakeVad:
+    """Speech is any sub-frame that is not all zeros."""
+
+    def __init__(self) -> None:
+        self.sizes: set[int] = set()
+
+    def is_speech(self, frame: bytes, sample_rate: int) -> bool:
+        self.sizes.add(len(frame))
+        return frame[0] != 0
+
+
+class ResettableDetector(FakeDetector):
+    def __init__(self, scores: dict[bytes, Mapping[str, float]]) -> None:
+        super().__init__(scores)
+        self.resets = 0
+
+    def reset(self) -> None:
+        self.resets += 1
+
+
+async def capture(frames: list[bytes], **kw: object) -> tuple[list[AudioChunk], WakeWordListener]:
+    """Run the listener over ``frames`` and collect what reached the capture sink."""
+    bus = EventBus()
+    await bus.start()
+    chunks: list[AudioChunk] = []
+    threads: set[int] = set()
+
+    def sink(chunk: AudioChunk) -> None:
+        threads.add(threading.get_ident())
+        chunks.append(chunk)
+
+    stream = FakeStream(frames)
+    detector = ResettableDetector({WAKE: {"hey_zeno": 0.95}})
+    wl = listener(
+        bus, stream, detector, threshold=0.6, refractory=0.0, capture_sink=sink, vad=FakeVad(), **kw
+    )
+    wl.start()
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if stream.closed or (chunks and chunks[-1].final and not stream._frames):
+            break
+    wl.stop()
+    await asyncio.sleep(0.02)  # let the last call_soon_threadsafe land
+    await bus.drain()
+    await bus.stop()
+    assert threads <= {threading.get_ident()}  # the sink only ever runs on the loop thread
+    wl.test_detector = detector  # type: ignore[attr-defined]
+    return chunks, wl
+
+
+async def test_after_the_wake_word_frames_go_to_the_sink_until_silence() -> None:
+    chunks, wl = await capture([WAKE, SPEECH, SPEECH, *[SILENCE] * 10])
+    assert [c.seq for c in chunks] == list(range(12))
+    assert len({c.utterance_id for c in chunks}) == 1
+    assert [c.final for c in chunks] == [False] * 11 + [True]
+    assert chunks[-1].end_reason == "silence"
+    assert chunks[0].pcm == SPEECH
+    assert wl.detections == 1
+    assert wl.test_detector.resets == 1  # type: ignore[attr-defined]
+
+
+async def test_vad_sees_20_ms_sub_frames() -> None:
+    vad = FakeVad()
+    bus = EventBus()
+    wl = listener(bus, FakeStream([]), FakeDetector({}), capture_sink=lambda c: None, vad=vad)
+    assert wl._is_speech(SPEECH)
+    assert vad.sizes == {640}
+
+
+async def test_no_speech_after_the_wake_word_gives_up() -> None:
+    chunks, _ = await capture([WAKE, *[SILENCE] * 8], no_speech_s=0.4)
+    assert len(chunks) == 5
+    assert chunks[-1].final and chunks[-1].end_reason == "no_speech"
+
+
+async def test_an_endless_utterance_is_cut_at_the_cap() -> None:
+    chunks, _ = await capture([WAKE, *[SPEECH] * 8], max_utterance_s=0.4)
+    assert len(chunks) == 5
+    assert chunks[-1].final and chunks[-1].end_reason == "max_length"
+
+
+async def test_the_wake_model_is_not_scored_while_capturing() -> None:
+    chunks, wl = await capture([WAKE, SPEECH, WAKE, SPEECH, *[SILENCE] * 10])
+    assert wl.detections == 1
+    assert chunks[1].pcm == WAKE  # captured like any other audio
+
+
+async def test_listening_resumes_after_an_utterance() -> None:
+    chunks, wl = await capture([WAKE, SPEECH, *[SILENCE] * 10, WAKE, SPEECH, *[SILENCE] * 10])
+    assert wl.detections == 2
+    ids = [c.utterance_id for c in chunks]
+    assert len(set(ids)) == 2
+    assert sum(c.final for c in chunks) == 2
+
+
+async def test_the_stream_ending_mid_utterance_closes_it() -> None:
+    chunks, _ = await capture([WAKE, SPEECH, SPEECH])
+    assert chunks[-1].final and chunks[-1].end_reason == "stopped"
+
+
+async def test_without_a_sink_nothing_is_captured() -> None:
+    bus = EventBus()
+    await bus.start()
+    stream = FakeStream([WAKE, SPEECH, WAKE])
+    wl = listener(bus, stream, FakeDetector({WAKE: {"hey_zeno": 0.95}}), refractory=0.0)
+    wl.start()
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if wl.detections == 2:
+            break
+    wl.stop()
+    await bus.stop()
+    assert wl.detections == 2  # today's behaviour: every wake frame fires

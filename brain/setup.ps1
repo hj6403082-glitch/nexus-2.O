@@ -9,7 +9,7 @@
   .\setup.ps1 -Cuda -FromSource    # compile against the installed CUDA Toolkit
 
 .EXAMPLE
-  .\setup.ps1 -Vision -Voice       # also download the Phase 2 model files into models\
+  .\setup.ps1 -Vision -Voice       # also download the Phase 2 model files into models\vision, models\voice
   .\setup.ps1 -VoiceExtra          # also install the optional Kokoro / faster-whisper adapters
 #>
 param(
@@ -73,7 +73,12 @@ if ($groups.Count) {
     if (-not $line.Trim() -or $line.StartsWith('#')) { continue }
     $group, $name, $url = -split $line
     if ($groups -notcontains $group) { continue }
-    $target = Join-Path 'models' $name
+    # One folder per kind (models\vision, models\voice), matching .env.example.
+    $folder = Join-Path 'models' $group
+    New-Item -ItemType Directory -Force -Path $folder | Out-Null
+    $target = Join-Path $folder $name
+    $flat = Join-Path 'models' $name  # where older setups put it
+    if (-not (Test-Path $target) -and (Test-Path $flat)) { Move-Item $flat $target }
     if ((Test-Path $target) -and (Get-Item $target).Length -gt 0) { Write-Host "have   $target"; continue }
     Write-Host "fetch  $target"
     Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile "$target.part"

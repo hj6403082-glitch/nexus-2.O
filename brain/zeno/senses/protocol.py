@@ -5,9 +5,10 @@ inbound types; commands only ever flow from the brain to a device.
 """
 
 import json
+import time
 import uuid
 from enum import IntEnum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -20,6 +21,8 @@ from pydantic import (
     TypeAdapter,
     ValidationError,
 )
+
+from zeno.senses.events import DeviceEvent, EventKind
 
 PROTOCOL_VERSION = 1
 
@@ -141,3 +144,74 @@ def parse_inbound(raw: str | bytes, *, max_bytes: int) -> InboundFrame:
 
 def encode(frame: _Frame) -> str:
     return frame.model_dump_json()
+
+
+# Internal bus events (ZENO_MULTIMODAL_ARCH.md section 2).
+#
+# These ride the EventBus between the brain's own parts. They are deliberately NOT in
+# InboundFrame: a device on the socket can never forge "the owner said X" or "say Y".
+# They carry small facts only; image and audio bytes stay in the FrameStore and the
+# worker queues.
+
+SourceName = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_.:-]{1,64}$")]
+
+
+class BusEvent(BaseModel):
+    """Base for the brain's typed bus events: frozen, strict, wrapped as DeviceEvent."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    KIND: ClassVar[EventKind]
+    DEVICE: ClassVar[str] = "brain"
+
+    def to_event(self) -> DeviceEvent:
+        return DeviceEvent(
+            device=self.DEVICE,
+            kind=self.KIND,
+            data=self.model_dump(mode="json"),
+            received_at=time.time(),
+        )
+
+    @classmethod
+    def from_event(cls, event: DeviceEvent) -> Self:
+        if event.kind != cls.KIND:
+            raise ValueError(f"Expected a {cls.KIND} event, got {event.kind}.")
+        return cls.model_validate(dict(event.data))
+
+
+class VisionFrameReceived(BusEvent):
+    """An image was stored in the FrameStore; ``frame_id`` fetches it from there."""
+
+    KIND: ClassVar[EventKind] = "vision_frame"
+
+    frame_id: FrameId
+    source: SourceName
+    mime: Literal["image/jpeg", "image/png"]
+    size_bytes: StrictInt = Field(ge=1)
+    received_at: float
+
+
+class AudioCommandReceived(BusEvent):
+    """Speech after "Hey Zeno", transcribed. The voice turn handler answers it."""
+
+    KIND: ClassVar[EventKind] = "audio_command"
+
+    utterance_id: FrameId
+    text: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    language: Annotated[str, StringConstraints(max_length=16)] = "en"
+    confidence: float = Field(ge=0.0, le=1.0)
+    duration_s: float = Field(ge=0.0)
+    source: SourceName = "microphone"
+
+
+class SpeechSynthesisRequested(BusEvent):
+    """Something the brain wants said out loud, one sentence or short passage."""
+
+    KIND: ClassVar[EventKind] = "speech_request"
+
+    request_id: FrameId = Field(default_factory=lambda: uuid.uuid4().hex)
+    text: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    turn_id: FrameId | None = None
+    """The voice turn this belongs to, so barge-in can drop the rest of it."""
+    interrupt: StrictBool = False
+    """Stop whatever is being said and clear the queue before saying this."""

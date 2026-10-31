@@ -1,5 +1,6 @@
 # Model files for Phase 2, fetched only when you ask (setup.ps1 -Vision / -Voice,
-# setup.sh --vision / --voice). They land in brain/models/, which git ignores.
+# setup.sh --vision / --voice). They land in brain/models/<kind>/ (models/vision,
+# models/voice), which git ignores.
 # Columns: group  file  url
 vision moondream2-text-model-f16.gguf  https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-text-model-f16.gguf
 vision moondream2-mmproj-f16.gguf      https://huggingface.co/vikhyatk/moondream2/resolve/main/moondream2-mmproj-f16.gguf

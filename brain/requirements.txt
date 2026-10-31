@@ -7,6 +7,10 @@
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
 # Pillar 1: native inference (GGUF models via llama.cpp)
+# Also runs the multimodal vision model (ZENO_MULTIMODAL_ARCH.md): 0.3.36 ships the
+# Moondream, LLaVA and MTMD chat handlers, so vision adds no package. Kept pinned: the
+# chat model depends on it. PLACEHOLDER for the accelerated build: CUDA or OpenBLAS is
+# a rebuild of this same pin (setup.ps1 -Cuda / -FromSource, see brain/CLAUDE.md).
 llama-cpp-python==0.3.36
 
 # Pillar 2: persistent vector memory (embedded, no server)
@@ -62,3 +66,10 @@ openwakeword==0.6.0; sys_platform == "win32"
 # sounddevice bundles PortAudio through CFFI, so its wheels are ABI-independent and
 # install on any CPython (incl. 3.14) with no compiler. pyaudio has no cp314 wheel.
 sounddevice==0.5.2; sys_platform == "win32"
+
+# --- Multimodal layer: vision + voice workers (ZENO_MULTIMODAL_ARCH.md) ---
+# PLACEHOLDER, not installed yet: faster-whisper is the default speech-to-text engine.
+# CTranslate2 has its own CPU/CUDA builds, so it is installed deliberately later, via
+# requirements-voice-extra.txt (setup -VoiceExtra) or by uncommenting the line below.
+# Until it is installed, the voice worker stays off and the wake word works as before.
+# faster-whisper==1.2.1

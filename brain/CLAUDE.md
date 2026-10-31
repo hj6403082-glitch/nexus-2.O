@@ -7,7 +7,10 @@ watchers, tools; approved 2026-10-20) and
 [`ZENO_LINUX_INTEGRATION.md`](../ZENO_LINUX_INTEGRATION.md) (systemd, telemetry,
 run_command, D-Bus; approved 2026-10-26) and
 [`ZENO_OS_INTEGRATION.md`](../ZENO_OS_INTEGRATION.md) (the Windows half and the OS
-loader; approved 2026-10-26). Read them before changing the design.
+loader; approved 2026-10-26) and
+[`ZENO_MULTIMODAL_ARCH.md`](../ZENO_MULTIMODAL_ARCH.md) (vision and voice workers on
+bounded queues, wake-word handoff; approved 2026-10-31). Read them before changing the
+design.
 The Next.js app in `../src` is a separate subsystem.
 
 ## Locked decisions
@@ -41,14 +44,17 @@ Manual equivalent: `python -m venv .venv`, then
 
 Phase 2 model files are never downloaded silently. Ask for them with
 `-Vision` / `-Voice` (`--vision` / `--voice`): setup fetches the files listed in
-`model-downloads.txt` into `brain/models/` (git-ignored) and skips ones already
-there. `-VoiceExtra` (`--voice-extra`) installs the optional Kokoro and
+`model-downloads.txt` into `brain/models/vision/` and `brain/models/voice/`
+(git-ignored) and skips ones already there. `-VoiceExtra` (`--voice-extra`) installs the optional Kokoro and
 faster-whisper adapters from `requirements-voice-extra.txt`. Flags combine with
 `-Cuda`.
 
 Phase 2 runtimes are all native and CPU-first: llama.cpp also runs the vision model
-(no new package), whisper.cpp (`pywhispercpp`) does speech-to-text, and Piper (on
-onnxruntime) speaks. PyTorch must never be pulled in; `tests/test_environment.py`
+(no new package), faster-whisper (CTranslate2) does speech-to-text in the multimodal
+layer (a placeholder until installed with `-VoiceExtra`; voice stays off without it),
+and Piper (on onnxruntime) speaks. Rule of the multimodal layer: the EventBus carries
+small typed facts only; bytes and jobs ride bounded queues; bus handlers only enqueue
+or start a task. PyTorch must never be pulled in; `tests/test_environment.py`
 checks.
 
 ## CPU vs CUDA (moving to an NVIDIA machine)

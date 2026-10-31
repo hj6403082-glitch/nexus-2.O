@@ -235,7 +235,9 @@ def test_wake_word_listener_starts_on_windows(
             started.append("stop")
 
     monkeypatch.setattr("zeno.daemon.sys.platform", "win32")
-    monkeypatch.setattr("zeno.senses.audio_listener.build_listener", lambda s, b: FakeListener())
+    monkeypatch.setattr(
+        "zeno.senses.audio_listener.build_listener", lambda s, b, **kw: FakeListener()
+    )
     with TestClient(daemon.app):
         assert started == ["start"]
     assert started == ["start", "stop"]

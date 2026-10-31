@@ -46,9 +46,13 @@ if [ ${#WANT[@]} -gt 0 ]; then
   while read -r group name url; do
     case "$group" in ''|\#*) continue ;; esac
     [[ " ${WANT[*]} " == *" $group "* ]] || continue
-    if [ -s "models/$name" ]; then echo "have   models/$name"; continue; fi
-    echo "fetch  models/$name"
-    curl -fL --retry 3 -o "models/$name.part" "$url" && mv "models/$name.part" "models/$name"
+    # One folder per kind (models/vision, models/voice), matching .env.example.
+    target="models/$group/$name"
+    mkdir -p "models/$group"
+    if [ ! -e "$target" ] && [ -e "models/$name" ]; then mv "models/$name" "$target"; fi
+    if [ -s "$target" ]; then echo "have   $target"; continue; fi
+    echo "fetch  $target"
+    curl -fL --retry 3 -o "$target.part" "$url" && mv "$target.part" "$target"
   done < model-downloads.txt
 fi
 
