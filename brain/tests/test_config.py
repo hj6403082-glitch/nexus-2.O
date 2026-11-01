@@ -155,3 +155,11 @@ def test_the_example_env_file_loads_and_names_only_real_settings() -> None:
             known.update(str(c).upper() for c in choices)
     assert names <= known, f"unknown settings in .env.example: {sorted(names - known)}"
     assert {"ZENO_VISION_ENABLED", "ZENO_VOICE_ENABLED", "ZENO_STT_ENGINE"} <= names
+
+
+def test_the_suite_ignores_a_local_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".env").write_text("ZENO_OS_TOOLS=true\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    assert Settings().os_tools is False
